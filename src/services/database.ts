@@ -3,7 +3,7 @@ import { firebaseSync } from './firebaseSync';
 
 class DatabaseService {
   private dbName = 'arkive-database';
-  private dbVersion = 9;
+  private dbVersion = 10;
   private db: IDBDatabase | null = null;
   private initPromise: Promise<void> | null = null;
   private syncEnabled = true;
@@ -21,7 +21,6 @@ class DatabaseService {
 
   private async performAutoSync(): Promise<void> {
     try {
-      // Check if Firebase is accessible
       const isConnected = await firebaseSync.checkConnection();
       if (isConnected) {
         await firebaseSync.performFullSync();
@@ -36,75 +35,86 @@ class DatabaseService {
   }
 
   async init(): Promise<void> {
-  if (this.db) return;
+    if (this.db) return;
 
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(this.dbName, this.dbVersion);
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.dbName, this.dbVersion);
 
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => {
-      this.db = request.result;
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        this.db = request.result;
 
-      // Handle connection loss
-      this.db.onversionchange = () => {
-        this.db?.close();
-        alert("A new version of the app is available. Please refresh.");
+        this.db.onversionchange = () => {
+          this.db?.close();
+          alert("A new version of the app is available. Please refresh.");
+        };
+
+        this.performAutoSync().catch(console.warn);
+        resolve();
       };
 
-      // Initialize Firebase sync after database is ready
-      this.performAutoSync().catch(console.warn);
-      resolve();
-    };
+      request.onupgradeneeded = (event) => {
+        const db = request.result;
 
-    request.onupgradeneeded = (event) => {
-      const db = request.result;
+        try {
+          const storeNames = ['users', 'clients', 'receipts', 'expenses', 'activities', 'notifications', 'documents', 'employees', 'attendance'];
 
-      try {
-        const storeNames = ['users', 'clients', 'receipts', 'expenses', 'activities', 'notifications', 'documents', 'employees', 'attendance'];
-
-        storeNames.forEach((store) => {
-          if (!db.objectStoreNames.contains(store)) {
-            switch (store) {
-              case 'users':
-                db.createObjectStore('users', { keyPath: 'id' }).createIndex('username', 'username', { unique: true });
-                break;
-              case 'clients':
-                db.createObjectStore('clients', { keyPath: 'id' }).createIndex('cnic', 'cnic', { unique: true });
-                break;
-              case 'receipts':
-                db.createObjectStore('receipts', { keyPath: 'id' }).createIndex('clientCnic', 'clientCnic');
-                break;
-              case 'expenses':
-                db.createObjectStore('expenses', { keyPath: 'id' }).createIndex('date', 'date');
-                break;
-              case 'activities':
-                db.createObjectStore('activities', { keyPath: 'id' }).createIndex('userId', 'userId');
-                break;
-              case 'notifications':
-                db.createObjectStore('notifications', { keyPath: 'id' }).createIndex('createdAt', 'createdAt');
-                break;
-              case 'documents':
-                db.createObjectStore('documents', { keyPath: 'id' }).createIndex('clientCnic', 'clientCnic');
-                break;
-              case 'employees':
-                db.createObjectStore('employees', { keyPath: 'id' }).createIndex('employeeId', 'employeeId', { unique: true });
-                break;
-              case 'attendance':
-                const attendanceStore = db.createObjectStore('attendance', { keyPath: 'id' });
-                attendanceStore.createIndex('employeeId', 'employeeId');
-                attendanceStore.createIndex('date', 'date');
-                break;
+          storeNames.forEach((store) => {
+            if (!db.objectStoreNames.contains(store)) {
+              switch (store) {
+                case 'users':
+                  const userStore = db.createObjectStore('users', { keyPath: 'id' });
+                  userStore.createIndex('username', 'username', { unique: true });
+                  break;
+                case 'clients':
+                  const clientStore = db.createObjectStore('clients', { keyPath: 'id' });
+                  clientStore.createIndex('cnic', 'cnic', { unique: true });
+                  break;
+                case 'receipts':
+                  const receiptStore = db.createObjectStore('receipts', { keyPath: 'id' });
+                  receiptStore.createIndex('clientCnic', 'clientCnic');
+                  receiptStore.createIndex('date', 'date');
+                  break;
+                case 'expenses':
+                  const expenseStore = db.createObjectStore('expenses', { keyPath: 'id' });
+                  expenseStore.createIndex('date', 'date');
+                  expenseStore.createIndex('category', 'category');
+                  break;
+                case 'activities':
+                  const activityStore = db.createObjectStore('activities', { keyPath: 'id' });
+                  activityStore.createIndex('userId', 'userId');
+                  activityStore.createIndex('timestamp', 'timestamp');
+                  break;
+                case 'notifications':
+                  const notificationStore = db.createObjectStore('notifications', { keyPath: 'id' });
+                  notificationStore.createIndex('createdAt', 'createdAt');
+                  notificationStore.createIndex('read', 'read');
+                  break;
+                case 'documents':
+                  const documentStore = db.createObjectStore('documents', { keyPath: 'id' });
+                  documentStore.createIndex('clientCnic', 'clientCnic');
+                  documentStore.createIndex('fileType', 'fileType');
+                  break;
+                case 'employees':
+                  const employeeStore = db.createObjectStore('employees', { keyPath: 'id' });
+                  employeeStore.createIndex('employeeId', 'employeeId', { unique: true });
+                  employeeStore.createIndex('status', 'status');
+                  break;
+                case 'attendance':
+                  const attendanceStore = db.createObjectStore('attendance', { keyPath: 'id' });
+                  attendanceStore.createIndex('employeeId', 'employeeId');
+                  attendanceStore.createIndex('date', 'date');
+                  break;
+              }
             }
-          }
-        });
-      } catch (error) {
-        console.error("Error during onupgradeneeded:", error);
-        reject(error); // important: do not silently fail
-      }
-    };
-  });
-}
-
+          });
+        } catch (error) {
+          console.error("Error during database upgrade:", error);
+          reject(error);
+        }
+      };
+    });
+  }
 
   private async getObjectStore(storeName: string, mode: IDBTransactionMode = 'readonly'): Promise<IDBObjectStore> {
     await this.ensureInitialized();
@@ -112,19 +122,48 @@ class DatabaseService {
     return this.db.transaction([storeName], mode).objectStore(storeName);
   }
 
-  // ------------------ USERS ------------------
-  async createUser(user: Omit<User, 'id'>): Promise<User> {
+  // Helper method to create user without sync (for internal use)
+  async createUserDirect(user: Omit<User, 'id'>): Promise<User> {
     const store = await this.getObjectStore('users', 'readwrite');
-    const newUser: User = { ...user, id: crypto.randomUUID(), createdAt: new Date(), lastModified: new Date() };
-    if (this.syncEnabled) {
-      firebaseSync.addToSyncQueue({ type: 'create', store: 'users', data: newUser }).catch(console.warn);
-    }
+    const newUser: User = { 
+      ...user, 
+      id: user.id || crypto.randomUUID(), 
+      createdAt: user.createdAt || new Date(), 
+      lastModified: new Date() 
+    };
+    
     return new Promise((resolve, reject) => {
       const req = store.add(newUser);
       req.onsuccess = () => resolve(newUser);
       req.onerror = () => reject(req.error);
     });
   }
+
+  // ------------------ USERS ------------------
+  async createUser(user: Omit<User, 'id'>): Promise<User> {
+    const store = await this.getObjectStore('users', 'readwrite');
+    const newUser: User = { 
+      ...user, 
+      id: crypto.randomUUID(), 
+      createdAt: new Date(), 
+      lastModified: new Date() 
+    };
+    
+    if (this.syncEnabled) {
+      firebaseSync.addToSyncQueue({ 
+        type: 'create', 
+        store: 'users', 
+        data: newUser 
+      }).catch(console.warn);
+    }
+    
+    return new Promise((resolve, reject) => {
+      const req = store.add(newUser);
+      req.onsuccess = () => resolve(newUser);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
   async getUserByUsername(username: string): Promise<User | null> {
     const store = await this.getObjectStore('users');
     const index = store.index('username');
@@ -134,6 +173,7 @@ class DatabaseService {
       req.onerror = () => reject(req.error);
     });
   }
+
   async getAllUsers(): Promise<User[]> {
     const store = await this.getObjectStore('users');
     return new Promise((resolve, reject) => {
@@ -142,19 +182,37 @@ class DatabaseService {
       req.onerror = () => reject(req.error);
     });
   }
+
   async updateUser(user: User): Promise<void> {
     const store = await this.getObjectStore('users', 'readwrite');
     const updated = { ...user, lastModified: new Date() };
-    firebaseSync.addToSyncQueue({ type: 'update', store: 'users', data: updated }).catch(console.warn);
+    
+    if (this.syncEnabled) {
+      firebaseSync.addToSyncQueue({ 
+        type: 'update', 
+        store: 'users', 
+        data: updated 
+      }).catch(console.warn);
+    }
+    
     return new Promise((resolve, reject) => {
       const req = store.put(updated);
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
   }
+
   async deleteUser(userId: string): Promise<void> {
     const store = await this.getObjectStore('users', 'readwrite');
-    firebaseSync.addToSyncQueue({ type: 'delete', store: 'users', data: { id: userId } }).catch(console.warn);
+    
+    if (this.syncEnabled) {
+      firebaseSync.addToSyncQueue({ 
+        type: 'delete', 
+        store: 'users', 
+        data: { id: userId } 
+      }).catch(console.warn);
+    }
+    
     return new Promise((resolve, reject) => {
       const req = store.delete(userId);
       req.onsuccess = () => resolve();
@@ -165,14 +223,29 @@ class DatabaseService {
   // ------------------ CLIENTS ------------------
   async createClient(client: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>): Promise<Client> {
     const store = await this.getObjectStore('clients', 'readwrite');
-    const newClient: Client = { ...client, id: crypto.randomUUID(), createdAt: new Date(), updatedAt: new Date(), lastModified: new Date() };
-    firebaseSync.addToSyncQueue({ type: 'create', store: 'clients', data: newClient }).catch(console.warn);
+    const newClient: Client = { 
+      ...client, 
+      id: crypto.randomUUID(), 
+      createdAt: new Date(), 
+      updatedAt: new Date(), 
+      lastModified: new Date() 
+    };
+    
+    if (this.syncEnabled) {
+      firebaseSync.addToSyncQueue({ 
+        type: 'create', 
+        store: 'clients', 
+        data: newClient 
+      }).catch(console.warn);
+    }
+    
     return new Promise((resolve, reject) => {
       const req = store.add(newClient);
       req.onsuccess = () => resolve(newClient);
       req.onerror = () => reject(req.error);
     });
   }
+
   async getClientByCnic(cnic: string): Promise<Client | null> {
     const store = await this.getObjectStore('clients');
     const index = store.index('cnic');
@@ -182,6 +255,7 @@ class DatabaseService {
       req.onerror = () => reject(req.error);
     });
   }
+
   async getAllClients(): Promise<Client[]> {
     const store = await this.getObjectStore('clients');
     return new Promise((resolve, reject) => {
@@ -190,19 +264,37 @@ class DatabaseService {
       req.onerror = () => reject(req.error);
     });
   }
+
   async updateClient(client: Client): Promise<void> {
     const store = await this.getObjectStore('clients', 'readwrite');
     const updated = { ...client, updatedAt: new Date(), lastModified: new Date() };
-    firebaseSync.addToSyncQueue({ type: 'update', store: 'clients', data: updated }).catch(console.warn);
+    
+    if (this.syncEnabled) {
+      firebaseSync.addToSyncQueue({ 
+        type: 'update', 
+        store: 'clients', 
+        data: updated 
+      }).catch(console.warn);
+    }
+    
     return new Promise((resolve, reject) => {
       const req = store.put(updated);
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
   }
+
   async deleteClient(id: string): Promise<void> {
     const store = await this.getObjectStore('clients', 'readwrite');
-    firebaseSync.addToSyncQueue({ type: 'delete', store: 'clients', data: { id } }).catch(console.warn);
+    
+    if (this.syncEnabled) {
+      firebaseSync.addToSyncQueue({ 
+        type: 'delete', 
+        store: 'clients', 
+        data: { id } 
+      }).catch(console.warn);
+    }
+    
     return new Promise((resolve, reject) => {
       const req = store.delete(id);
       req.onsuccess = () => resolve();
@@ -213,16 +305,28 @@ class DatabaseService {
   // ------------------ RECEIPTS ------------------
   async createReceipt(receipt: Omit<Receipt, 'id' | 'createdAt'>): Promise<Receipt> {
     const store = await this.getObjectStore('receipts', 'readwrite');
-    const newReceipt: Receipt = { ...receipt, id: crypto.randomUUID(), createdAt: new Date(), lastModified: new Date() };
-    firebaseSync.addToSyncQueue({ type: 'create', store: 'receipts', data: newReceipt })
-  .then(() => firebaseSync.performFullSync())
-  .catch(console.warn);
+    const newReceipt: Receipt = { 
+      ...receipt, 
+      id: crypto.randomUUID(), 
+      createdAt: new Date(), 
+      lastModified: new Date() 
+    };
+    
+    if (this.syncEnabled) {
+      firebaseSync.addToSyncQueue({ 
+        type: 'create', 
+        store: 'receipts', 
+        data: newReceipt 
+      }).catch(console.warn);
+    }
+    
     return new Promise((resolve, reject) => {
       const req = store.add(newReceipt);
       req.onsuccess = () => resolve(newReceipt);
       req.onerror = () => reject(req.error);
     });
   }
+
   async getReceiptsByClient(clientCnic: string): Promise<Receipt[]> {
     const store = await this.getObjectStore('receipts');
     const index = store.index('clientCnic');
@@ -232,6 +336,7 @@ class DatabaseService {
       req.onerror = () => reject(req.error);
     });
   }
+
   async getAllReceipts(): Promise<Receipt[]> {
     const store = await this.getObjectStore('receipts');
     return new Promise((resolve, reject) => {
@@ -240,23 +345,37 @@ class DatabaseService {
       req.onerror = () => reject(req.error);
     });
   }
+
   async updateReceipt(receipt: Receipt): Promise<void> {
     const store = await this.getObjectStore('receipts', 'readwrite');
     const updated = { ...receipt, lastModified: new Date() };
-    firebaseSync.addToSyncQueue({ type: 'update', store: 'receipts', data: updated })
-  .then(() => firebaseSync.performFullSync())
-  .catch(console.warn);
+    
+    if (this.syncEnabled) {
+      firebaseSync.addToSyncQueue({ 
+        type: 'update', 
+        store: 'receipts', 
+        data: updated 
+      }).catch(console.warn);
+    }
+    
     return new Promise((resolve, reject) => {
       const req = store.put(updated);
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
   }
+
   async deleteReceipt(id: string): Promise<void> {
     const store = await this.getObjectStore('receipts', 'readwrite');
-    firebaseSync.addToSyncQueue({ type: 'delete', store: 'receipts', data: { id } })
-  .then(() => firebaseSync.performFullSync())
-  .catch(console.warn);
+    
+    if (this.syncEnabled) {
+      firebaseSync.addToSyncQueue({ 
+        type: 'delete', 
+        store: 'receipts', 
+        data: { id } 
+      }).catch(console.warn);
+    }
+    
     return new Promise((resolve, reject) => {
       const req = store.delete(id);
       req.onsuccess = () => resolve();
@@ -267,14 +386,28 @@ class DatabaseService {
   // ------------------ EXPENSES ------------------
   async createExpense(expense: Omit<Expense, 'id' | 'createdAt'>): Promise<Expense> {
     const store = await this.getObjectStore('expenses', 'readwrite');
-    const newExpense: Expense = { ...expense, id: crypto.randomUUID(), createdAt: new Date(), lastModified: new Date() };
-    firebaseSync.addToSyncQueue({ type: 'create', store: 'expenses', data: newExpense }).catch(console.warn);
+    const newExpense: Expense = { 
+      ...expense, 
+      id: crypto.randomUUID(), 
+      createdAt: new Date(), 
+      lastModified: new Date() 
+    };
+    
+    if (this.syncEnabled) {
+      firebaseSync.addToSyncQueue({ 
+        type: 'create', 
+        store: 'expenses', 
+        data: newExpense 
+      }).catch(console.warn);
+    }
+    
     return new Promise((resolve, reject) => {
       const req = store.add(newExpense);
       req.onsuccess = () => resolve(newExpense);
       req.onerror = () => reject(req.error);
     });
   }
+
   async getAllExpenses(): Promise<Expense[]> {
     const store = await this.getObjectStore('expenses');
     return new Promise((resolve, reject) => {
@@ -283,19 +416,37 @@ class DatabaseService {
       req.onerror = () => reject(req.error);
     });
   }
+
   async updateExpense(expense: Expense): Promise<void> {
     const store = await this.getObjectStore('expenses', 'readwrite');
     const updated = { ...expense, lastModified: new Date() };
-    firebaseSync.addToSyncQueue({ type: 'update', store: 'expenses', data: updated }).catch(console.warn);
+    
+    if (this.syncEnabled) {
+      firebaseSync.addToSyncQueue({ 
+        type: 'update', 
+        store: 'expenses', 
+        data: updated 
+      }).catch(console.warn);
+    }
+    
     return new Promise((resolve, reject) => {
       const req = store.put(updated);
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
   }
+
   async deleteExpense(id: string): Promise<void> {
     const store = await this.getObjectStore('expenses', 'readwrite');
-    firebaseSync.addToSyncQueue({ type: 'delete', store: 'expenses', data: { id } }).catch(console.warn);
+    
+    if (this.syncEnabled) {
+      firebaseSync.addToSyncQueue({ 
+        type: 'delete', 
+        store: 'expenses', 
+        data: { id } 
+      }).catch(console.warn);
+    }
+    
     return new Promise((resolve, reject) => {
       const req = store.delete(id);
       req.onsuccess = () => resolve();
@@ -307,12 +458,15 @@ class DatabaseService {
   async createActivity(activity: Omit<Activity, 'id'>): Promise<Activity> {
     const store = await this.getObjectStore('activities', 'readwrite');
     const newActivity: Activity = { ...activity, id: crypto.randomUUID() };
+    
+    // Don't sync activities to Firebase to avoid clutter
     return new Promise((resolve, reject) => {
       const req = store.add(newActivity);
       req.onsuccess = () => resolve(newActivity);
       req.onerror = () => reject(req.error);
     });
   }
+
   async getAllActivities(): Promise<Activity[]> {
     const store = await this.getObjectStore('activities');
     return new Promise((resolve, reject) => {
@@ -326,12 +480,22 @@ class DatabaseService {
   async createNotification(notification: Omit<Notification, 'id'>): Promise<Notification> {
     const store = await this.getObjectStore('notifications', 'readwrite');
     const newNotification: Notification = { ...notification, id: crypto.randomUUID() };
+    
+    if (this.syncEnabled) {
+      firebaseSync.addToSyncQueue({ 
+        type: 'create', 
+        store: 'notifications', 
+        data: newNotification 
+      }).catch(console.warn);
+    }
+    
     return new Promise((resolve, reject) => {
       const req = store.add(newNotification);
       req.onsuccess = () => resolve(newNotification);
       req.onerror = () => reject(req.error);
     });
   }
+
   async getAllNotifications(): Promise<Notification[]> {
     const store = await this.getObjectStore('notifications');
     return new Promise((resolve, reject) => {
@@ -340,37 +504,70 @@ class DatabaseService {
       req.onerror = () => reject(req.error);
     });
   }
+
   async markNotificationAsRead(id: string): Promise<void> {
     const store = await this.getObjectStore('notifications', 'readwrite');
     return new Promise((resolve, reject) => {
       const getReq = store.get(id);
       getReq.onsuccess = () => {
-        const n = getReq.result;
-        if (n) {
-          n.read = true;
-          const putReq = store.put(n);
+        const notification = getReq.result;
+        if (notification) {
+          notification.read = true;
+          
+          if (this.syncEnabled) {
+            firebaseSync.addToSyncQueue({ 
+              type: 'update', 
+              store: 'notifications', 
+              data: notification 
+            }).catch(console.warn);
+          }
+          
+          const putReq = store.put(notification);
           putReq.onsuccess = () => resolve();
           putReq.onerror = () => reject(putReq.error);
-        } else resolve();
+        } else {
+          resolve();
+        }
       };
       getReq.onerror = () => reject(getReq.error);
     });
   }
+
   async markAllNotificationsAsRead(): Promise<void> {
     const store = await this.getObjectStore('notifications', 'readwrite');
     return new Promise((resolve, reject) => {
       const req = store.getAll();
       req.onsuccess = () => {
-        const list = req.result;
-        let count = 0;
-        if (!list.length) return resolve();
-        list.forEach(n => {
-          if (!n.read) {
-            n.read = true;
-            const putReq = store.put(n);
-            putReq.onsuccess = () => (++count === list.length && resolve());
+        const notifications = req.result;
+        let completed = 0;
+        
+        if (notifications.length === 0) {
+          resolve();
+          return;
+        }
+        
+        notifications.forEach(notification => {
+          if (!notification.read) {
+            notification.read = true;
+            
+            if (this.syncEnabled) {
+              firebaseSync.addToSyncQueue({ 
+                type: 'update', 
+                store: 'notifications', 
+                data: notification 
+              }).catch(console.warn);
+            }
+            
+            const putReq = store.put(notification);
+            putReq.onsuccess = () => {
+              completed++;
+              if (completed === notifications.length) resolve();
+            };
             putReq.onerror = () => reject(putReq.error);
-          } else if (++count === list.length) resolve();
+          } else {
+            completed++;
+            if (completed === notifications.length) resolve();
+          }
         });
       };
       req.onerror = () => reject(req.error);
@@ -379,6 +576,15 @@ class DatabaseService {
 
   async deleteNotification(id: string): Promise<void> {
     const store = await this.getObjectStore('notifications', 'readwrite');
+    
+    if (this.syncEnabled) {
+      firebaseSync.addToSyncQueue({ 
+        type: 'delete', 
+        store: 'notifications', 
+        data: { id } 
+      }).catch(console.warn);
+    }
+    
     return new Promise((resolve, reject) => {
       const req = store.delete(id);
       req.onsuccess = () => resolve();
@@ -389,14 +595,29 @@ class DatabaseService {
   // ------------------ DOCUMENTS ------------------
   async createDocument(doc: Omit<Document, 'id' | 'uploadedAt' | 'accessLog'>): Promise<Document> {
     const store = await this.getObjectStore('documents', 'readwrite');
-    const newDoc: Document = { ...doc, id: crypto.randomUUID(), uploadedAt: new Date(), lastModified: new Date(), accessLog: [{ userId: doc.uploadedBy, timestamp: new Date(), action: 'upload' }] };
-    firebaseSync.addToSyncQueue({ type: 'create', store: 'documents', data: newDoc }).catch(console.warn);
+    const newDoc: Document = { 
+      ...doc, 
+      id: crypto.randomUUID(), 
+      uploadedAt: new Date(), 
+      lastModified: new Date(), 
+      accessLog: [{ userId: doc.uploadedBy, timestamp: new Date(), action: 'upload' }] 
+    };
+    
+    if (this.syncEnabled) {
+      firebaseSync.addToSyncQueue({ 
+        type: 'create', 
+        store: 'documents', 
+        data: newDoc 
+      }).catch(console.warn);
+    }
+    
     return new Promise((resolve, reject) => {
       const req = store.add(newDoc);
       req.onsuccess = () => resolve(newDoc);
       req.onerror = () => reject(req.error);
     });
   }
+
   async getDocumentsByClient(clientCnic: string): Promise<Document[]> {
     const store = await this.getObjectStore('documents');
     const index = store.index('clientCnic');
@@ -406,6 +627,7 @@ class DatabaseService {
       req.onerror = () => reject(req.error);
     });
   }
+
   async getAllDocuments(): Promise<Document[]> {
     const store = await this.getObjectStore('documents');
     return new Promise((resolve, reject) => {
@@ -414,25 +636,44 @@ class DatabaseService {
       req.onerror = () => reject(req.error);
     });
   }
+
   async updateDocument(doc: Document): Promise<void> {
     const store = await this.getObjectStore('documents', 'readwrite');
     const updated = { ...doc, lastModified: new Date() };
-    firebaseSync.addToSyncQueue({ type: 'update', store: 'documents', data: updated }).catch(console.warn);
+    
+    if (this.syncEnabled) {
+      firebaseSync.addToSyncQueue({ 
+        type: 'update', 
+        store: 'documents', 
+        data: updated 
+      }).catch(console.warn);
+    }
+    
     return new Promise((resolve, reject) => {
       const req = store.put(updated);
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
   }
+
   async deleteDocument(id: string): Promise<void> {
     const store = await this.getObjectStore('documents', 'readwrite');
-    firebaseSync.addToSyncQueue({ type: 'delete', store: 'documents', data: { id } }).catch(console.warn);
+    
+    if (this.syncEnabled) {
+      firebaseSync.addToSyncQueue({ 
+        type: 'delete', 
+        store: 'documents', 
+        data: { id } 
+      }).catch(console.warn);
+    }
+    
     return new Promise((resolve, reject) => {
       const req = store.delete(id);
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
   }
+
   async logDocumentAccess(documentId: string, userId: string, action: 'view' | 'download'): Promise<void> {
     const store = await this.getObjectStore('documents', 'readwrite');
     return new Promise((resolve, reject) => {
@@ -443,12 +684,21 @@ class DatabaseService {
           doc.lastAccessed = new Date();
           doc.lastModified = new Date();
           doc.accessLog.push({ userId, timestamp: new Date(), action });
-          firebaseSync.addToSyncQueue({ type: 'update', store: 'documents', data: doc }).catch(console.warn).finally(() => {
-            const putReq = store.put(doc);
-            putReq.onsuccess = () => resolve();
-            putReq.onerror = () => reject(putReq.error);
-          });
-        } else resolve();
+          
+          if (this.syncEnabled) {
+            firebaseSync.addToSyncQueue({ 
+              type: 'update', 
+              store: 'documents', 
+              data: doc 
+            }).catch(console.warn);
+          }
+          
+          const putReq = store.put(doc);
+          putReq.onsuccess = () => resolve();
+          putReq.onerror = () => reject(putReq.error);
+        } else {
+          resolve();
+        }
       };
       getReq.onerror = () => reject(getReq.error);
     });
@@ -457,14 +707,29 @@ class DatabaseService {
   // ------------------ EMPLOYEES ------------------
   async createEmployee(e: Omit<Employee, 'id' | 'createdAt' | 'updatedAt'>): Promise<Employee> {
     const store = await this.getObjectStore('employees', 'readwrite');
-    const newEmp: Employee = { ...e, id: crypto.randomUUID(), createdAt: new Date(), updatedAt: new Date(), lastModified: new Date() };
-    firebaseSync.addToSyncQueue({ type: 'create', store: 'employees', data: newEmp }).catch(console.warn);
+    const newEmp: Employee = { 
+      ...e, 
+      id: crypto.randomUUID(), 
+      createdAt: new Date(), 
+      updatedAt: new Date(), 
+      lastModified: new Date() 
+    };
+    
+    if (this.syncEnabled) {
+      firebaseSync.addToSyncQueue({ 
+        type: 'create', 
+        store: 'employees', 
+        data: newEmp 
+      }).catch(console.warn);
+    }
+    
     return new Promise((resolve, reject) => {
       const req = store.add(newEmp);
       req.onsuccess = () => resolve(newEmp);
       req.onerror = () => reject(req.error);
     });
   }
+
   async getAllEmployees(): Promise<Employee[]> {
     const store = await this.getObjectStore('employees');
     return new Promise((resolve, reject) => {
@@ -473,25 +738,44 @@ class DatabaseService {
       req.onerror = () => reject(req.error);
     });
   }
+
   async updateEmployee(e: Employee): Promise<void> {
     const store = await this.getObjectStore('employees', 'readwrite');
     const updated = { ...e, updatedAt: new Date(), lastModified: new Date() };
-    firebaseSync.addToSyncQueue({ type: 'update', store: 'employees', data: updated }).catch(console.warn);
+    
+    if (this.syncEnabled) {
+      firebaseSync.addToSyncQueue({ 
+        type: 'update', 
+        store: 'employees', 
+        data: updated 
+      }).catch(console.warn);
+    }
+    
     return new Promise((resolve, reject) => {
       const req = store.put(updated);
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
   }
+
   async deleteEmployee(id: string): Promise<void> {
     const store = await this.getObjectStore('employees', 'readwrite');
-    firebaseSync.addToSyncQueue({ type: 'delete', store: 'employees', data: { id } }).catch(console.warn);
+    
+    if (this.syncEnabled) {
+      firebaseSync.addToSyncQueue({ 
+        type: 'delete', 
+        store: 'employees', 
+        data: { id } 
+      }).catch(console.warn);
+    }
+    
     return new Promise((resolve, reject) => {
       const req = store.delete(id);
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
   }
+
   async getEmployeeById(id: string): Promise<Employee | null> {
     const store = await this.getObjectStore('employees');
     return new Promise((resolve, reject) => {
@@ -510,16 +794,31 @@ class DatabaseService {
       req.onerror = () => reject(req.error);
     });
   }
+
   async markAttendance(r: Omit<Attendance, 'id'>): Promise<Attendance> {
     const store = await this.getObjectStore('attendance', 'readwrite');
-    const newRec: Attendance = { ...r, id: crypto.randomUUID(), lastModified: new Date() };
-    firebaseSync.addToSyncQueue({ type: 'create', store: 'attendance', data: newRec }).catch(console.warn);
+    const newRec: Attendance = { 
+      ...r, 
+      id: crypto.randomUUID(), 
+      createdAt: new Date(),
+      lastModified: new Date() 
+    };
+    
+    if (this.syncEnabled) {
+      firebaseSync.addToSyncQueue({ 
+        type: 'create', 
+        store: 'attendance', 
+        data: newRec 
+      }).catch(console.warn);
+    }
+    
     return new Promise((resolve, reject) => {
       const req = store.add(newRec);
       req.onsuccess = () => resolve(newRec);
       req.onerror = () => reject(req.error);
     });
   }
+
   async getAttendanceByEmployee(employeeId: string): Promise<Attendance[]> {
     const store = await this.getObjectStore('attendance');
     const idx = store.index('employeeId');
@@ -529,38 +828,56 @@ class DatabaseService {
       req.onerror = () => reject(req.error);
     });
   }
+
   async updateAttendance(r: Attendance): Promise<void> {
     const store = await this.getObjectStore('attendance', 'readwrite');
     const updated = { ...r, lastModified: new Date() };
-    firebaseSync.addToSyncQueue({ type: 'update', store: 'attendance', data: updated }).catch(console.warn);
+    
+    if (this.syncEnabled) {
+      firebaseSync.addToSyncQueue({ 
+        type: 'update', 
+        store: 'attendance', 
+        data: updated 
+      }).catch(console.warn);
+    }
+    
     return new Promise((resolve, reject) => {
       const req = store.put(updated);
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
   }
+
   async deleteAttendance(id: string): Promise<void> {
     const store = await this.getObjectStore('attendance', 'readwrite');
-    firebaseSync.addToSyncQueue({ type: 'delete', store: 'attendance', data: { id } }).catch(console.warn);
+    
+    if (this.syncEnabled) {
+      firebaseSync.addToSyncQueue({ 
+        type: 'delete', 
+        store: 'attendance', 
+        data: { id } 
+      }).catch(console.warn);
+    }
+    
     return new Promise((resolve, reject) => {
       const req = store.delete(id);
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
   }
-  async getAttendanceByDate(date: string): Promise<Attendance[]> {
-    const store = await this.getObjectStore('attendance');
-    const idx = store.index('date');
+
+  // ------------------ UTILITY METHODS ------------------
+  async clearStore(storeName: string): Promise<void> {
+    const store = await this.getObjectStore(storeName, 'readwrite');
     return new Promise((resolve, reject) => {
-      const req = idx.getAll(date);
-      req.onsuccess = () => resolve(req.result);
+      const req = store.clear();
+      req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
   }
 
-  // ------------------ BACKUP / RESTORE / SYNC ------------------
   async exportData(): Promise<string> {
-    const [u, c, r, e, a, n, d] = await Promise.all([
+    const [users, clients, receipts, expenses, activities, notifications, documents, employees, attendance] = await Promise.all([
       this.getAllUsers(),
       this.getAllClients(),
       this.getAllReceipts(),
@@ -568,57 +885,54 @@ class DatabaseService {
       this.getAllActivities(),
       this.getAllNotifications(),
       this.getAllDocuments().catch(() => []),
+      this.getAllEmployees().catch(() => []),
+      this.getAllAttendance().catch(() => []),
     ]);
-    return JSON.stringify(
-      {
-        users: u,
-        clients: c,
-        receipts: r,
-        expenses: e,
-        activities: a,
-        notifications: n,
-        documents: d,
-        exportDate: new Date().toISOString(),
-        version: this.dbVersion,
-        appName: 'Arkive',
-        deviceId: this.getDeviceId(),
-      },
-      null,
-      2
-    );
+
+    return JSON.stringify({
+      users,
+      clients,
+      receipts,
+      expenses,
+      activities,
+      notifications,
+      documents,
+      employees,
+      attendance,
+      exportDate: new Date().toISOString(),
+      version: this.dbVersion,
+      appName: 'Arkive',
+      deviceId: this.getDeviceId(),
+    }, null, 2);
   }
-  private getDeviceId(): string {
-    let id = localStorage.getItem('arkive-device-id');
-    if (!id) {
-      id = crypto.randomUUID();
-      localStorage.setItem('arkive-device-id', id);
-    }
-    return id;
-  }
-  async getLastSyncTime(): Promise<Date | null> {
-    const store = await this.getObjectStore('sync_metadata');
-    return new Promise((resolve, reject) => {
-      const req = store.get('last_sync');
-      req.onsuccess = () => resolve(req.result ? new Date(req.result.timestamp) : null);
-      req.onerror = () => reject(req.error);
-    });
-  }
-  async updateLastSyncTime(): Promise<void> {
-    const store = await this.getObjectStore('sync_metadata', 'readwrite');
-    return new Promise((resolve, reject) => {
-      const req = store.put({ id: 'last_sync', timestamp: new Date(), deviceId: this.getDeviceId() });
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-    });
-  }
+
   async importData(json: string): Promise<void> {
     const data = JSON.parse(json);
     const stores = ['users', 'clients', 'receipts', 'expenses', 'activities', 'notifications', 'documents', 'employees', 'attendance'];
-    for (const s of stores) await this.clearStore(s);
-    const importStore = async (name: string, items: any[]) => {
-      const store = await this.getObjectStore(name, 'readwrite');
-      items.forEach((item) => store.add(item));
+    
+    // Clear all stores
+    for (const storeName of stores) {
+      await this.clearStore(storeName);
+    }
+
+    // Import data
+    const importStore = async (storeName: string, items: any[]) => {
+      if (!items || !Array.isArray(items)) return;
+      
+      const store = await this.getObjectStore(storeName, 'readwrite');
+      for (const item of items) {
+        try {
+          await new Promise<void>((resolve, reject) => {
+            const req = store.add(item);
+            req.onsuccess = () => resolve();
+            req.onerror = () => reject(req.error);
+          });
+        } catch (error) {
+          console.warn(`Failed to import item to ${storeName}:`, error);
+        }
+      }
     };
+
     await Promise.all([
       importStore('users', data.users || []),
       importStore('clients', data.clients || []),
@@ -631,47 +945,18 @@ class DatabaseService {
       importStore('attendance', data.attendance || []),
     ]);
   }
-  async syncFromFirebase(): Promise<void> {
-    const [u, c, r, e, a, n, d, emp, att] = await Promise.all([
-      firebaseSync.getStoreFromFirebase('users'),
-      firebaseSync.getStoreFromFirebase('clients'),
-      firebaseSync.getStoreFromFirebase('receipts'),
-      firebaseSync.getStoreFromFirebase('expenses'),
-      firebaseSync.getStoreFromFirebase('activities'),
-      firebaseSync.getStoreFromFirebase('notifications'),
-      firebaseSync.getStoreFromFirebase('documents'),
-      firebaseSync.getStoreFromFirebase('employees'),
-      firebaseSync.getStoreFromFirebase('attendance'),
-    ]);
-    const stores = ['users', 'clients', 'receipts', 'expenses', 'activities', 'notifications', 'documents', 'employees', 'attendance'];
-    for (const s of stores) await this.clearStore(s);
-    const imp = async (name: string, items: any[]) => {
-      const store = await this.getObjectStore(name, 'readwrite');
-      await Promise.all(items.map((i) => store.add(i)));
-    };
-    await Promise.all([
-      imp('users', u),
-      imp('clients', c),
-      imp('receipts', r),
-      imp('expenses', e),
-      imp('activities', a),
-      imp('notifications', n),
-      imp('documents', d),
-      imp('employees', emp),
-      imp('attendance', att),
-    ]);
-  }
-  async getSyncStatus() {
-    return firebaseSync.getSyncStatus();
+
+  private getDeviceId(): string {
+    let deviceId = localStorage.getItem('arkive-device-id');
+    if (!deviceId) {
+      deviceId = crypto.randomUUID();
+      localStorage.setItem('arkive-device-id', deviceId);
+    }
+    return deviceId;
   }
 
-  async clearStore(storeName: string): Promise<void> {
-    const store = await this.getObjectStore(storeName, 'readwrite');
-    return new Promise((resolve, reject) => {
-      const req = store.clear();
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-    });
+  async getSyncStatus() {
+    return firebaseSync.getSyncStatus();
   }
 }
 

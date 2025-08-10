@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { db } from '../services/database';
+import { firebaseSync } from '../services/firebaseSync';
 import { Client, Receipt, Expense, Activity, Notification, Document } from '../types';
 import { useEmployees } from './useEmployees';
-import { useAttendance } from '/src/hooks/useAttendance';
+import { useAttendance } from './useAttendance';
 
 export function useClients() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -21,12 +22,34 @@ export function useClients() {
 
   useEffect(() => {
     fetchClients();
+    
+    // Setup realtime listener
+    firebaseSync.setupRealtimeListener('clients', (remoteData: Client[]) => {
+      if (remoteData.length > 0) {
+        setClients(prevClients => {
+          const clientMap = new Map(prevClients.map(c => [c.id, c]));
+          
+          // Merge remote data
+          remoteData.forEach(remoteClient => {
+            clientMap.set(remoteClient.id, remoteClient);
+          });
+          
+          return Array.from(clientMap.values()).sort((a, b) => 
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+          );
+        });
+      }
+    });
+
+    return () => {
+      firebaseSync.removeRealtimeListener('clients');
+    };
   }, []);
 
   const createClient = async (client: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
       const newClient = await db.createClient(client);
-      setClients(prev => [...prev, newClient]);
+      setClients(prev => [newClient, ...prev]);
       return newClient;
     } catch (error) {
       console.error('Error creating client:', error);
@@ -64,12 +87,34 @@ export function useReceipts() {
 
   useEffect(() => {
     fetchReceipts();
+    
+    // Setup realtime listener
+    firebaseSync.setupRealtimeListener('receipts', (remoteData: Receipt[]) => {
+      if (remoteData.length > 0) {
+        setReceipts(prevReceipts => {
+          const receiptMap = new Map(prevReceipts.map(r => [r.id, r]));
+          
+          // Merge remote data
+          remoteData.forEach(remoteReceipt => {
+            receiptMap.set(remoteReceipt.id, remoteReceipt);
+          });
+          
+          return Array.from(receiptMap.values()).sort((a, b) => 
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+        });
+      }
+    });
+
+    return () => {
+      firebaseSync.removeRealtimeListener('receipts');
+    };
   }, []);
 
   const createReceipt = async (receipt: Omit<Receipt, 'id' | 'createdAt'>) => {
     try {
       const newReceipt = await db.createReceipt(receipt);
-      setReceipts(prev => [...prev, newReceipt]);
+      setReceipts(prev => [newReceipt, ...prev]);
       return newReceipt;
     } catch (error) {
       console.error('Error creating receipt:', error);
@@ -106,12 +151,34 @@ export function useExpenses() {
 
   useEffect(() => {
     fetchExpenses();
+    
+    // Setup realtime listener
+    firebaseSync.setupRealtimeListener('expenses', (remoteData: Expense[]) => {
+      if (remoteData.length > 0) {
+        setExpenses(prevExpenses => {
+          const expenseMap = new Map(prevExpenses.map(e => [e.id, e]));
+          
+          // Merge remote data
+          remoteData.forEach(remoteExpense => {
+            expenseMap.set(remoteExpense.id, remoteExpense);
+          });
+          
+          return Array.from(expenseMap.values()).sort((a, b) => 
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+        });
+      }
+    });
+
+    return () => {
+      firebaseSync.removeRealtimeListener('expenses');
+    };
   }, []);
 
   const createExpense = async (expense: Omit<Expense, 'id' | 'createdAt'>) => {
     try {
       const newExpense = await db.createExpense(expense);
-      setExpenses(prev => [...prev, newExpense]);
+      setExpenses(prev => [newExpense, ...prev]);
       return newExpense;
     } catch (error) {
       console.error('Error creating expense:', error);
@@ -161,6 +228,28 @@ export function useNotifications() {
 
   useEffect(() => {
     fetchNotifications();
+    
+    // Setup realtime listener
+    firebaseSync.setupRealtimeListener('notifications', (remoteData: Notification[]) => {
+      if (remoteData.length > 0) {
+        setNotifications(prevNotifications => {
+          const notificationMap = new Map(prevNotifications.map(n => [n.id, n]));
+          
+          // Merge remote data
+          remoteData.forEach(remoteNotification => {
+            notificationMap.set(remoteNotification.id, remoteNotification);
+          });
+          
+          return Array.from(notificationMap.values()).sort((a, b) => 
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+        });
+      }
+    });
+
+    return () => {
+      firebaseSync.removeRealtimeListener('notifications');
+    };
   }, []);
 
   const markAsRead = async (id: string) => {
@@ -195,7 +284,7 @@ export function useDocuments() {
       setDocuments(data.sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime()));
     } catch (error) {
       console.error('Error fetching documents:', error);
-      setDocuments([]); // Set empty array on error
+      setDocuments([]);
     } finally {
       setLoading(false);
     }
@@ -203,6 +292,28 @@ export function useDocuments() {
 
   useEffect(() => {
     fetchDocuments();
+    
+    // Setup realtime listener
+    firebaseSync.setupRealtimeListener('documents', (remoteData: Document[]) => {
+      if (remoteData.length > 0) {
+        setDocuments(prevDocuments => {
+          const documentMap = new Map(prevDocuments.map(d => [d.id, d]));
+          
+          // Merge remote data
+          remoteData.forEach(remoteDocument => {
+            documentMap.set(remoteDocument.id, remoteDocument);
+          });
+          
+          return Array.from(documentMap.values()).sort((a, b) => 
+            new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
+          );
+        });
+      }
+    });
+
+    return () => {
+      firebaseSync.removeRealtimeListener('documents');
+    };
   }, []);
 
   const createDocument = async (document: Omit<Document, 'id' | 'uploadedAt' | 'accessLog'>) => {

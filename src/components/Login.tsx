@@ -24,8 +24,14 @@ export function Login() {
     checkConnectionStatus();
     
     // Monitor online status
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
+    const handleOnline = () => {
+      setIsOnline(true);
+      checkConnectionStatus();
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      setSyncStatus('Offline Mode');
+    };
     
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -57,6 +63,8 @@ export function Login() {
   };
 
   const validateForm = () => {
+    setError('');
+    
     if (!username.trim()) {
       setError('Username is required');
       return false;
@@ -87,12 +95,12 @@ export function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
     
     if (!validateForm()) return;
     
     setLoading(true);
+    setError('');
+    setSuccess('');
 
     try {
       if (mode === 'login') {
@@ -149,7 +157,9 @@ export function Login() {
         await checkAdminCount();
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(errorMessage);
+      console.error('Authentication error:', err);
     } finally {
       setLoading(false);
     }
@@ -211,7 +221,7 @@ export function Login() {
           </div>
         </div>
 
-        {/* Stacked Mode Toggle */}
+        {/* Mode Toggle */}
         <div className="space-y-2 mb-6">
           <button
             type="button"
@@ -268,6 +278,7 @@ export function Login() {
               required
               autoFocus
               minLength={3}
+              disabled={loading}
             />
           </div>
 
@@ -285,11 +296,13 @@ export function Login() {
                 placeholder="Enter your password"
                 required
                 minLength={6}
+                disabled={loading}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200"
+                disabled={loading}
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
@@ -311,11 +324,13 @@ export function Login() {
                   placeholder="Confirm your password"
                   required
                   minLength={6}
+                  disabled={loading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200"
+                  disabled={loading}
                 >
                   {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
@@ -386,7 +401,7 @@ export function Login() {
           </div>
         </div>
 
-        {/* Default Credentials (for development) */}
+        {/* Default Credentials */}
         {mode === 'login' && (
           <div className="mt-4 text-center text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
             <p className="font-medium mb-1">Default Admin Credentials:</p>
