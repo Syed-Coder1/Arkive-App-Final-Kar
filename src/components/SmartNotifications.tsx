@@ -242,7 +242,7 @@ export function SmartNotifications() {
 
       {/* Add Notification Modal */}
       {showAddForm && (
-        <div className="form-modal">
+        <div className="fixed inset-0 bg-black bg-opacity-75 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="form-container">
             <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
               Add New Notification

@@ -349,30 +349,30 @@ a, button, input, select, textarea {
   align-items: center;
   justify-content: center;
   padding: 1rem;
-  backdrop-filter: blur(12px);
-  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(16px);
+  background: rgba(0, 0, 0, 0.75);
   animation: fadeIn 0.2s ease-out;
 }
 
 .form-container {
   position: relative;
   width: 100%;
-  max-width: 28rem;
-  max-height: 85vh;
+  max-width: 32rem;
+  max-height: 90vh;
   overflow-y: auto;
   background: white;
-  border-radius: 0.75rem;
-  padding: 1.5rem;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(229, 231, 235, 0.2);
+  border-radius: 1rem;
+  padding: 2rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(229, 231, 235, 0.3);
   transform: scale(0.95);
   animation: modalSlideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
 .dark .form-container {
   background: rgb(31, 41, 55);
-  border: 1px solid rgba(75, 85, 99, 0.3);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(75, 85, 99, 0.2);
+  border: 1px solid rgba(75, 85, 99, 0.4);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(75, 85, 99, 0.3);
 }
 
 @keyframes modalSlideIn {

@@ -506,7 +506,7 @@ export function Vault({ showUpload: externalShowUpload, onCloseUpload }: VaultPr
 
       {/* Upload Modal */}
       {showUpload && (
-        <div className="form-modal">
+        <div className="fixed inset-0 bg-black bg-opacity-75 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="form-container animate-slideInRight">
             <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
               <Upload className="w-5 h-5" />

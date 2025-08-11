@@ -38,10 +38,12 @@ export default function AdvancedAnalytics() {
       const monthEnd = endOfMonth(monthDate);
       
       const monthReceipts = receipts.filter(r => 
-        r.date >= monthStart && r.date <= monthEnd
+        (r.date instanceof Date ? r.date : new Date(r.date)) >= monthStart && 
+        (r.date instanceof Date ? r.date : new Date(r.date)) <= monthEnd
       );
       const monthExpenses = expenses.filter(e => 
-        e.date >= monthStart && e.date <= monthEnd
+        (e.date instanceof Date ? e.date : new Date(e.date)) >= monthStart && 
+        (e.date instanceof Date ? e.date : new Date(e.date)) <= monthEnd
       );
       
       const income = monthReceipts.reduce((sum, r) => sum + r.amount, 0);
@@ -64,7 +66,7 @@ export default function AdvancedAnalytics() {
 
   // Calculate expense breakdown
   const expenseBreakdown = React.useMemo(() => {
-    const categories = expenses.reduce((acc, expense) => {
+    const categories = expenses.filter(e => e && e.category && e.amount).reduce((acc, expense) => {
       const category = expense.category.charAt(0).toUpperCase() + expense.category.slice(1);
       acc[category] = (acc[category] || 0) + expense.amount;
       return acc;
@@ -73,15 +75,17 @@ export default function AdvancedAnalytics() {
     return Object.entries(categories).map(([name, value]) => ({
       name,
       value: Math.round(value),
-      percentage: ((value / Object.values(categories).reduce((a, b) => a + b, 0)) * 100).toFixed(1)
+      percentage: Object.values(categories).reduce((a, b) => a + b, 0) > 0 
+        ? ((value / Object.values(categories).reduce((a, b) => a + b, 0)) * 100).toFixed(1)
+        : '0.0'
     }));
   }, [expenses]);
 
   // Calculate client performance
   const clientPerformance = React.useMemo(() => {
-    const clientData = clients.map(client => {
+    const clientData = clients.filter(c => c && c.cnic && c.name).map(client => {
       const clientReceipts = receipts.filter(r => r.clientCnic === client.cnic);
-      const totalAmount = clientReceipts.reduce((sum, r) => sum + r.amount, 0);
+      const totalAmount = clientReceipts.reduce((sum, r) => sum + (r.amount || 0), 0);
       const receiptCount = clientReceipts.length;
       const avgAmount = receiptCount > 0 ? totalAmount / receiptCount : 0;
       
@@ -93,15 +97,15 @@ export default function AdvancedAnalytics() {
         avgAmount: Math.round(avgAmount),
         type: client.type
       };
-    }).sort((a, b) => b.totalAmount - a.totalAmount).slice(0, 10);
+    }).filter(c => c.totalAmount > 0).sort((a, b) => b.totalAmount - a.totalAmount).slice(0, 10);
 
     return clientData;
   }, [clients, receipts]);
 
   // Calculate key metrics
   const metrics = React.useMemo(() => {
-    const totalRevenue = receipts.reduce((sum, r) => sum + r.amount, 0);
-    const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
+    const totalRevenue = receipts.reduce((sum, r) => sum + (r.amount || 0), 0);
+    const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
     const netProfit = totalRevenue - totalExpenses;
     const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
     
@@ -113,12 +117,18 @@ export default function AdvancedAnalytics() {
     const lastMonthEnd = endOfMonth(lastMonth);
     
     const currentMonthRevenue = receipts
-      .filter(r => r.date >= currentMonthStart && r.date <= currentMonthEnd)
-      .reduce((sum, r) => sum + r.amount, 0);
+      .filter(r => {
+        const receiptDate = r.date instanceof Date ? r.date : new Date(r.date);
+        return receiptDate >= currentMonthStart && receiptDate <= currentMonthEnd;
+      })
+      .reduce((sum, r) => sum + (r.amount || 0), 0);
     
     const lastMonthRevenue = receipts
-      .filter(r => r.date >= lastMonthStart && r.date <= lastMonthEnd)
-      .reduce((sum, r) => sum + r.amount, 0);
+      .filter(r => {
+        const receiptDate = r.date instanceof Date ? r.date : new Date(r.date);
+        return receiptDate >= lastMonthStart && receiptDate <= lastMonthEnd;
+      })
+      .reduce((sum, r) => sum + (r.amount || 0), 0);
     
     const revenueGrowth = lastMonthRevenue > 0 
       ? ((currentMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100 
@@ -132,7 +142,7 @@ export default function AdvancedAnalytics() {
       revenueGrowth: Math.round(revenueGrowth * 100) / 100,
       avgReceiptValue: receipts.length > 0 ? Math.round(totalRevenue / receipts.length) : 0,
       totalClients: clients.length,
-      activeClients: new Set(receipts.map(r => r.clientCnic)).size
+      activeClients: new Set(receipts.filter(r => r.clientCnic).map(r => r.clientCnic)).size
     };
   }, [receipts, expenses, clients]);
 
