@@ -860,6 +860,8 @@ export function Clients({ showForm: externalShowForm, onCloseForm }: ClientsProp
                                 </p>
                               </div>
                             </div>
+                          ))}
+
                           {/* Last Update Activity */}
                           {selectedClient.updatedAt && selectedClient.updatedAt !== selectedClient.createdAt && (
                             <div className="flex items-center gap-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
@@ -876,7 +878,7 @@ export function Clients({ showForm: externalShowForm, onCloseForm }: ClientsProp
                               </div>
                             </div>
                           )}
-                          ))}
+
                           {clientReceipts.length === 0 && (
                             <div className="text-center py-6">
                               <Activity className="w-10 h-10 text-gray-400 mx-auto mb-2" />
