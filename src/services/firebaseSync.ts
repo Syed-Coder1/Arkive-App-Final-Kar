@@ -254,6 +254,30 @@ class FirebaseSyncService {
   private serializeForFirebase(data: any): any {
     const serialized = { ...data };
     
+    // Convert undefined values to null (Firebase doesn't accept undefined)
+    const convertUndefinedToNull = (obj: any): any => {
+      if (obj === null || obj === undefined) {
+        return null;
+      }
+      
+      if (Array.isArray(obj)) {
+        return obj.map(item => convertUndefinedToNull(item));
+      }
+      
+      if (typeof obj === 'object' && obj !== null) {
+        const converted: any = {};
+        for (const [key, value] of Object.entries(obj)) {
+          converted[key] = convertUndefinedToNull(value);
+        }
+        return converted;
+      }
+      
+      return obj;
+    };
+    
+    // Apply undefined to null conversion
+    const cleanedData = convertUndefinedToNull(serialized);
+    
     // Convert Date objects to ISO strings
     const dateFields = [
       'date', 'createdAt', 'updatedAt', 'lastLogin', 'uploadedAt', 
@@ -261,20 +285,20 @@ class FirebaseSyncService {
     ];
     
     dateFields.forEach(field => {
-      if (serialized[field] instanceof Date) {
-        serialized[field] = serialized[field].toISOString();
+      if (cleanedData[field] instanceof Date) {
+        cleanedData[field] = cleanedData[field].toISOString();
       }
     });
 
     // Handle nested date objects in accessLog
-    if (serialized.accessLog && Array.isArray(serialized.accessLog)) {
-      serialized.accessLog = serialized.accessLog.map((log: any) => ({
+    if (cleanedData.accessLog && Array.isArray(cleanedData.accessLog)) {
+      cleanedData.accessLog = cleanedData.accessLog.map((log: any) => ({
         ...log,
         timestamp: log.timestamp instanceof Date ? log.timestamp.toISOString() : log.timestamp
       }));
     }
 
-    return serialized;
+    return cleanedData;
   }
 
   async getStoreFromFirebase(storeName: string): Promise<any[]> {
