@@ -97,33 +97,52 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
 
   // Calculate statistics
   const stats = React.useMemo(() => {
-    const totalIncome = receipts.reduce((sum, r) => sum + (r.amount || 0), 0);
-    const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    const safeReceipts = Array.isArray(receipts) ? receipts.filter(r => r && typeof r.amount === 'number') : [];
+    const safeExpenses = Array.isArray(expenses) ? expenses.filter(e => e && typeof e.amount === 'number') : [];
+    const safeClients = Array.isArray(clients) ? clients.filter(c => c && c.id) : [];
+    const safeEmployees = Array.isArray(employees) ? employees.filter(e => e && e.id) : [];
+    const safeAttendance = Array.isArray(attendance) ? attendance.filter(a => a && a.id) : [];
+    const safeNotifications = Array.isArray(notifications) ? notifications.filter(n => n && n.id) : [];
+    
+    const totalIncome = safeReceipts.reduce((sum, r) => sum + (r.amount || 0), 0);
+    const totalExpenses = safeExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
     const netProfit = totalIncome - totalExpenses;
     
     const currentMonth = new Date();
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
     
-    const monthlyIncome = receipts
-      .filter(r => r.date >= monthStart && r.date <= monthEnd)
+    const monthlyIncome = safeReceipts
+      .filter(r => {
+        const receiptDate = r.date instanceof Date ? r.date : new Date(r.date);
+        return receiptDate >= monthStart && receiptDate <= monthEnd;
+      })
       .reduce((sum, r) => sum + (r.amount || 0), 0);
     
-    const monthlyExpenses = expenses
-      .filter(e => e.date >= monthStart && e.date <= monthEnd)
+    const monthlyExpenses = safeExpenses
+      .filter(e => {
+        const expenseDate = e.date instanceof Date ? e.date : new Date(e.date);
+        return expenseDate >= monthStart && expenseDate <= monthEnd;
+      })
       .reduce((sum, e) => sum + (e.amount || 0), 0);
 
-    const activeClients = new Set(receipts.map(r => r.clientCnic)).size;
-    const activeEmployees = employees.filter(emp => emp.status === 'active').length;
+    const activeClients = new Set(safeReceipts.map(r => r.clientCnic).filter(Boolean)).size;
+    const activeEmployees = safeEmployees.filter(emp => emp.status === 'active').length;
     
     // Today's attendance
     const today = format(new Date(), 'yyyy-MM-dd');
-    const todayAttendance = attendance.filter(att => 
-      format(att.date, 'yyyy-MM-dd') === today
+    const todayAttendance = safeAttendance.filter(att => {
+      try {
+        const attDate = att.date instanceof Date ? att.date : new Date(att.date);
+        return format(attDate, 'yyyy-MM-dd') === today;
+      } catch {
+        return false;
+      }
+    }
     );
     const presentToday = todayAttendance.filter(att => att.status === 'present').length;
     
-    const unreadNotifications = notifications.filter(n => !n.read).length;
+    const unreadNotifications = safeNotifications.filter(n => !n.read).length;
 
     return {
       totalIncome,
@@ -132,10 +151,10 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
       monthlyIncome,
       monthlyExpenses,
       activeClients,
-      totalClients: clients.length,
-      totalReceipts: receipts.length,
+      totalClients: safeClients.length,
+      totalReceipts: safeReceipts.length,
       activeEmployees,
-      totalEmployees: employees.length,
+      totalEmployees: safeEmployees.length,
       presentToday,
       unreadNotifications,
       profitMargin: totalIncome > 0 ? ((netProfit / totalIncome) * 100) : 0
@@ -144,17 +163,32 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
 
   // Monthly trend data
   const monthlyTrend = React.useMemo(() => {
+    const safeReceipts = Array.isArray(receipts) ? receipts.filter(r => r && typeof r.amount === 'number') : [];
+    const safeExpenses = Array.isArray(expenses) ? expenses.filter(e => e && typeof e.amount === 'number') : [];
+    
     const months = [];
     for (let i = 5; i >= 0; i--) {
       const monthDate = subMonths(new Date(), i);
       const monthStart = startOfMonth(monthDate);
       const monthEnd = endOfMonth(monthDate);
       
-      const monthReceipts = receipts.filter(r => 
-        r.date >= monthStart && r.date <= monthEnd
+      const monthReceipts = safeReceipts.filter(r => {
+        try {
+          const receiptDate = r.date instanceof Date ? r.date : new Date(r.date);
+          return receiptDate >= monthStart && receiptDate <= monthEnd;
+        } catch {
+          return false;
+        }
+      }
       );
-      const monthExpenses = expenses.filter(e => 
-        e.date >= monthStart && e.date <= monthEnd
+      const monthExpenses = safeExpenses.filter(e => {
+        try {
+          const expenseDate = e.date instanceof Date ? e.date : new Date(e.date);
+          return expenseDate >= monthStart && expenseDate <= monthEnd;
+        } catch {
+          return false;
+        }
+      }
       );
       
       const income = monthReceipts.reduce((sum, r) => sum + (r.amount || 0), 0);
@@ -171,16 +205,30 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
   }, [receipts, expenses]);
 
   // Recent activities
-  const recentReceipts = receipts
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 5);
+  const recentReceipts = React.useMemo(() => {
+    const safeReceipts = Array.isArray(receipts) ? receipts.filter(r => r && r.id && r.createdAt) : [];
+    return safeReceipts
+      .sort((a, b) => {
+        try {
+          const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
+          const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
+          return dateB.getTime() - dateA.getTime();
+        } catch {
+          return 0;
+        }
+      })
+      .slice(0, 5);
+  }, [receipts]);
 
   const loading = receiptsLoading || expensesLoading || clientsLoading;
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="text-center">
+          <div className="premium-spinner mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400 font-medium">Loading dashboard...</p>
+        </div>
       </div>
     );
   }
@@ -200,7 +248,7 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
         
         <div className="flex items-center gap-4">
           {/* Sync Status */}
-          <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+          <div className="flex items-center gap-3 px-6 py-3 glass-card rounded-2xl shadow-premium border border-white/20 dark:border-gray-600/30">
             {syncStatus.isOnline ? (
               <Wifi className="w-5 h-5 text-green-500" />
             ) : (
@@ -212,7 +260,7 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
               {syncStatus.isOnline ? 'Online' : 'Offline'}
             </span>
             {syncStatus.queueLength > 0 && (
-              <span className="text-xs bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-400 px-2 py-1 rounded-full">
+              <span className="text-xs bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-400 px-3 py-1 rounded-full font-bold">
                 {syncStatus.queueLength} pending
               </span>
             )}
@@ -221,7 +269,7 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
           <button
             onClick={handleForceSync}
             disabled={syncing || !syncStatus.isOnline}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+            className="flex items-center gap-3 px-6 py-3 btn-premium text-white rounded-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-premium-lg hover:shadow-2xl font-bold"
           >
             <RefreshCw className={`w-5 h-5 ${syncing ? 'animate-spin' : ''}`} />
             {syncing ? 'Syncing...' : 'Force Sync'}
@@ -233,19 +281,19 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div 
           onClick={() => onPageChange('receipts')}
-          className="bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 text-white rounded-3xl p-8 shadow-premium-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-500 cursor-pointer group stagger-item animate-gradient-flow"
+          className="dashboard-metric-card bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 text-white rounded-3xl p-10 shadow-premium-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-500 cursor-pointer group stagger-item animate-gradient-flow"
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-blue-100 text-sm font-semibold tracking-wide uppercase">Total Revenue</p>
-              <p className="text-4xl font-bold mb-2 text-shadow">₨{stats.totalIncome.toLocaleString()}</p>
-              <p className="text-blue-200 text-sm font-medium">{stats.totalReceipts} receipts</p>
+              <p className="text-blue-100 text-sm font-bold tracking-wider uppercase mb-2">Total Revenue</p>
+              <p className="text-5xl font-bold mb-3 text-shadow-lg">₨{stats.totalIncome.toLocaleString()}</p>
+              <p className="text-blue-200 text-base font-semibold">{stats.totalReceipts} receipts</p>
             </div>
-            <div className="bg-white/20 p-4 rounded-2xl group-hover:bg-white/30 transition-all duration-300 group-hover:scale-110 group-hover:rotate-12">
-              <DollarSign className="w-10 h-10" />
+            <div className="bg-white/20 p-5 rounded-3xl group-hover:bg-white/30 transition-all duration-300 group-hover:scale-110 group-hover:rotate-12 backdrop-blur-sm">
+              <DollarSign className="w-12 h-12 drop-shadow-lg" />
             </div>
           </div>
-          <div className="mt-6 flex items-center text-blue-200 text-sm font-medium">
+          <div className="mt-8 flex items-center text-blue-200 text-base font-bold">
             <ArrowRight className="w-4 h-4 mr-1" />
             View all receipts
           </div>
@@ -253,19 +301,19 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
 
         <div 
           onClick={() => onPageChange('expenses')}
-          className="bg-gradient-to-br from-red-500 via-red-600 to-pink-600 text-white rounded-3xl p-8 shadow-premium-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-500 cursor-pointer group stagger-item animate-gradient-flow"
+          className="dashboard-metric-card bg-gradient-to-br from-red-500 via-red-600 to-pink-600 text-white rounded-3xl p-10 shadow-premium-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-500 cursor-pointer group stagger-item animate-gradient-flow"
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-red-100 text-sm font-semibold tracking-wide uppercase">Total Expenses</p>
-              <p className="text-4xl font-bold mb-2 text-shadow">₨{stats.totalExpenses.toLocaleString()}</p>
-              <p className="text-red-200 text-sm font-medium">{expenses.length} entries</p>
+              <p className="text-red-100 text-sm font-bold tracking-wider uppercase mb-2">Total Expenses</p>
+              <p className="text-5xl font-bold mb-3 text-shadow-lg">₨{stats.totalExpenses.toLocaleString()}</p>
+              <p className="text-red-200 text-base font-semibold">{stats.totalExpenses > 0 ? expenses.length : 0} entries</p>
             </div>
-            <div className="bg-white/20 p-4 rounded-2xl group-hover:bg-white/30 transition-all duration-300 group-hover:scale-110 group-hover:rotate-12">
-              <CreditCard className="w-10 h-10" />
+            <div className="bg-white/20 p-5 rounded-3xl group-hover:bg-white/30 transition-all duration-300 group-hover:scale-110 group-hover:rotate-12 backdrop-blur-sm">
+              <CreditCard className="w-12 h-12 drop-shadow-lg" />
             </div>
           </div>
-          <div className="mt-6 flex items-center text-red-200 text-sm font-medium">
+          <div className="mt-8 flex items-center text-red-200 text-base font-bold">
             <ArrowRight className="w-4 h-4 mr-1" />
             Manage expenses
           </div>
@@ -273,19 +321,19 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
 
         <div 
           onClick={() => onPageChange('clients')}
-          className="bg-gradient-to-br from-green-500 via-green-600 to-emerald-600 text-white rounded-3xl p-8 shadow-premium-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-500 cursor-pointer group stagger-item animate-gradient-flow"
+          className="dashboard-metric-card bg-gradient-to-br from-green-500 via-green-600 to-emerald-600 text-white rounded-3xl p-10 shadow-premium-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-500 cursor-pointer group stagger-item animate-gradient-flow"
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-green-100 text-sm font-semibold tracking-wide uppercase">Active Clients</p>
-              <p className="text-4xl font-bold mb-2 text-shadow">{stats.activeClients}</p>
-              <p className="text-green-200 text-sm font-medium">of {stats.totalClients} total</p>
+              <p className="text-green-100 text-sm font-bold tracking-wider uppercase mb-2">Active Clients</p>
+              <p className="text-5xl font-bold mb-3 text-shadow-lg">{stats.activeClients}</p>
+              <p className="text-green-200 text-base font-semibold">of {stats.totalClients} total</p>
             </div>
-            <div className="bg-white/20 p-4 rounded-2xl group-hover:bg-white/30 transition-all duration-300 group-hover:scale-110 group-hover:rotate-12">
-              <Users className="w-10 h-10" />
+            <div className="bg-white/20 p-5 rounded-3xl group-hover:bg-white/30 transition-all duration-300 group-hover:scale-110 group-hover:rotate-12 backdrop-blur-sm">
+              <Users className="w-12 h-12 drop-shadow-lg" />
             </div>
           </div>
-          <div className="mt-6 flex items-center text-green-200 text-sm font-medium">
+          <div className="mt-8 flex items-center text-green-200 text-base font-bold">
             <ArrowRight className="w-4 h-4 mr-1" />
             View all clients
           </div>
@@ -293,19 +341,19 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
 
         <div 
           onClick={() => onPageChange('employees')}
-          className="bg-gradient-to-br from-purple-500 via-purple-600 to-violet-600 text-white rounded-3xl p-8 shadow-premium-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-500 cursor-pointer group stagger-item animate-gradient-flow"
+          className="dashboard-metric-card bg-gradient-to-br from-purple-500 via-purple-600 to-violet-600 text-white rounded-3xl p-10 shadow-premium-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-500 cursor-pointer group stagger-item animate-gradient-flow"
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-purple-100 text-sm font-semibold tracking-wide uppercase">Employees</p>
-              <p className="text-4xl font-bold mb-2 text-shadow">{stats.activeEmployees}</p>
-              <p className="text-purple-200 text-sm font-medium">{stats.presentToday} present today</p>
+              <p className="text-purple-100 text-sm font-bold tracking-wider uppercase mb-2">Employees</p>
+              <p className="text-5xl font-bold mb-3 text-shadow-lg">{stats.activeEmployees}</p>
+              <p className="text-purple-200 text-base font-semibold">{stats.presentToday} present today</p>
             </div>
-            <div className="bg-white/20 p-4 rounded-2xl group-hover:bg-white/30 transition-all duration-300 group-hover:scale-110 group-hover:rotate-12">
-              <Users className="w-10 h-10" />
+            <div className="bg-white/20 p-5 rounded-3xl group-hover:bg-white/30 transition-all duration-300 group-hover:scale-110 group-hover:rotate-12 backdrop-blur-sm">
+              <Users className="w-12 h-12 drop-shadow-lg" />
             </div>
           </div>
-          <div className="mt-6 flex items-center text-purple-200 text-sm font-medium">
+          <div className="mt-8 flex items-center text-purple-200 text-base font-bold">
             <ArrowRight className="w-4 h-4 mr-1" />
             Manage employees
           </div>
@@ -313,77 +361,77 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
       </div>
 
       {/* Secondary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="premium-card glass-card rounded-3xl p-8 shadow-premium-lg hover-lift stagger-item">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="premium-card glass-card rounded-3xl p-10 shadow-premium-lg hover-lift stagger-item">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Net Profit</h3>
-            <div className={`p-3 rounded-2xl ${stats.netProfit >= 0 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
-              <TrendingUp className={`w-8 h-8 ${stats.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`} />
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Net Profit</h3>
+            <div className={`p-4 rounded-3xl shadow-lg ${stats.netProfit >= 0 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
+              <TrendingUp className={`w-10 h-10 ${stats.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`} />
             </div>
           </div>
-          <p className={`text-4xl font-bold mb-2 ${stats.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+          <p className={`text-5xl font-bold mb-3 ${stats.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
             ₨{stats.netProfit.toLocaleString()}
           </p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
+          <p className="text-base text-gray-500 dark:text-gray-400 font-bold">
             Profit Margin: {stats.profitMargin.toFixed(1)}%
           </p>
         </div>
 
-        <div className="premium-card glass-card rounded-3xl p-8 shadow-premium-lg hover-lift stagger-item">
+        <div className="premium-card glass-card rounded-3xl p-10 shadow-premium-lg hover-lift stagger-item">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white">This Month</h3>
-            <div className="p-3 rounded-2xl bg-blue-100 dark:bg-blue-900/30">
-              <Calendar className="w-8 h-8 text-blue-600" />
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white">This Month</h3>
+            <div className="p-4 rounded-3xl bg-blue-100 dark:bg-blue-900/30 shadow-lg">
+              <Calendar className="w-10 h-10 text-blue-600" />
             </div>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="flex justify-between">
-              <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">Income:</span>
-              <span className="font-bold text-green-600 text-lg">₨{stats.monthlyIncome.toLocaleString()}</span>
+              <span className="text-base text-gray-600 dark:text-gray-400 font-bold">Income:</span>
+              <span className="font-bold text-green-600 text-xl">₨{stats.monthlyIncome.toLocaleString()}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">Expenses:</span>
-              <span className="font-bold text-red-600 text-lg">₨{stats.monthlyExpenses.toLocaleString()}</span>
+              <span className="text-base text-gray-600 dark:text-gray-400 font-bold">Expenses:</span>
+              <span className="font-bold text-red-600 text-xl">₨{stats.monthlyExpenses.toLocaleString()}</span>
             </div>
           </div>
         </div>
 
         <div 
           onClick={() => onPageChange('notifications')}
-          className="premium-card glass-card rounded-3xl p-8 shadow-premium-lg hover-lift cursor-pointer group stagger-item"
+          className="premium-card glass-card rounded-3xl p-10 shadow-premium-lg hover-lift cursor-pointer group stagger-item"
         >
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Notifications</h3>
-            <div className="p-3 rounded-2xl bg-orange-100 dark:bg-orange-900/30">
-              <Bell className="w-8 h-8 text-orange-600 group-hover:animate-gentle-bounce" />
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Notifications</h3>
+            <div className="p-4 rounded-3xl bg-orange-100 dark:bg-orange-900/30 shadow-lg">
+              <Bell className="w-10 h-10 text-orange-600 group-hover:animate-gentle-bounce" />
             </div>
           </div>
-          <p className="text-4xl font-bold text-orange-600 mb-2">{stats.unreadNotifications}</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
+          <p className="text-5xl font-bold text-orange-600 mb-3">{stats.unreadNotifications}</p>
+          <p className="text-base text-gray-500 dark:text-gray-400 font-bold">
             {stats.unreadNotifications > 0 ? 'Unread messages' : 'All caught up!'}
           </p>
         </div>
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Revenue Trend */}
         <div className="chart-container stagger-item">
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-            <BarChart3 className="w-6 h-6 text-blue-600" />
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 flex items-center gap-3">
+            <BarChart3 className="w-8 h-8 text-blue-600" />
             6-Month Revenue Trend
           </h3>
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height={320}>
             <BarChart data={monthlyTrend}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="opacity-30" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="opacity-50" />
               <XAxis 
                 dataKey="month" 
-                tick={{ fontSize: 12, fill: '#6b7280', fontWeight: 500 }}
-                axisLine={{ stroke: '#d1d5db', strokeWidth: 2 }}
+                tick={{ fontSize: 14, fill: '#6b7280', fontWeight: 600 }}
+                axisLine={{ stroke: '#d1d5db', strokeWidth: 3 }}
               />
               <YAxis 
-                tick={{ fontSize: 12, fill: '#6b7280', fontWeight: 500 }}
-                axisLine={{ stroke: '#d1d5db', strokeWidth: 2 }}
+                tick={{ fontSize: 14, fill: '#6b7280', fontWeight: 600 }}
+                axisLine={{ stroke: '#d1d5db', strokeWidth: 3 }}
                 tickFormatter={(value) => `${(value / 1000)}K`}
               />
               <Tooltip 
@@ -393,15 +441,15 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
                 ]}
                 contentStyle={{ 
                   backgroundColor: '#ffffff',
-                  border: '2px solid #e5e7eb',
-                  borderRadius: '12px',
-                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
-                  fontSize: '14px',
-                  fontWeight: 600
+                  border: '3px solid #e5e7eb',
+                  borderRadius: '16px',
+                  boxShadow: '0 20px 40px -10px rgba(0, 0, 0, 0.2)',
+                  fontSize: '16px',
+                  fontWeight: 700
                 }}
               />
-              <Bar dataKey="income" fill="url(#greenGradient)" radius={[6, 6, 0, 0]} name="income" />
-              <Bar dataKey="expense" fill="url(#redGradient)" radius={[6, 6, 0, 0]} name="expense" />
+              <Bar dataKey="income" fill="url(#greenGradient)" radius={[8, 8, 0, 0]} name="income" />
+              <Bar dataKey="expense" fill="url(#redGradient)" radius={[8, 8, 0, 0]} name="expense" />
               <defs>
                 <linearGradient id="greenGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#10B981" />
@@ -418,41 +466,41 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
 
         {/* Profit Trend */}
         <div className="chart-container stagger-item">
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-            <TrendingUp className="w-6 h-6 text-green-600" />
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 flex items-center gap-3">
+            <TrendingUp className="w-8 h-8 text-green-600" />
             Profit Analysis
           </h3>
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height={320}>
             <LineChart data={monthlyTrend}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="opacity-30" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="opacity-50" />
               <XAxis 
                 dataKey="month" 
-                tick={{ fontSize: 12, fill: '#6b7280', fontWeight: 500 }}
-                axisLine={{ stroke: '#d1d5db', strokeWidth: 2 }}
+                tick={{ fontSize: 14, fill: '#6b7280', fontWeight: 600 }}
+                axisLine={{ stroke: '#d1d5db', strokeWidth: 3 }}
               />
               <YAxis 
-                tick={{ fontSize: 12, fill: '#6b7280', fontWeight: 500 }}
-                axisLine={{ stroke: '#d1d5db', strokeWidth: 2 }}
+                tick={{ fontSize: 14, fill: '#6b7280', fontWeight: 600 }}
+                axisLine={{ stroke: '#d1d5db', strokeWidth: 3 }}
                 tickFormatter={(value) => `${(value / 1000)}K`}
               />
               <Tooltip 
                 formatter={(value: number) => [`₨${value.toLocaleString()}`, 'Profit']}
                 contentStyle={{ 
                   backgroundColor: '#ffffff',
-                  border: '2px solid #e5e7eb',
-                  borderRadius: '12px',
-                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
-                  fontSize: '14px',
-                  fontWeight: 600
+                  border: '3px solid #e5e7eb',
+                  borderRadius: '16px',
+                  boxShadow: '0 20px 40px -10px rgba(0, 0, 0, 0.2)',
+                  fontSize: '16px',
+                  fontWeight: 700
                 }}
               />
               <Line 
                 type="monotone" 
                 dataKey="profit" 
                 stroke="url(#blueGradient)" 
-                strokeWidth={5}
-                dot={{ fill: '#3B82F6', strokeWidth: 3, r: 8 }}
-                activeDot={{ r: 10, stroke: '#3B82F6', strokeWidth: 3, fill: '#ffffff', boxShadow: '0 0 10px rgba(59, 130, 246, 0.5)' }}
+                strokeWidth={6}
+                dot={{ fill: '#3B82F6', strokeWidth: 4, r: 10 }}
+                activeDot={{ r: 12, stroke: '#3B82F6', strokeWidth: 4, fill: '#ffffff', boxShadow: '0 0 15px rgba(59, 130, 246, 0.7)' }}
               />
               <defs>
                 <linearGradient id="blueGradient" x1="0" y1="0" x2="1" y2="0">
@@ -466,114 +514,114 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
       </div>
 
       {/* Quick Actions */}
-      <div className="glass-card rounded-3xl p-8 shadow-premium-lg stagger-item">
-        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-          <Plus className="w-6 h-6 text-blue-600" />
+      <div className="glass-card rounded-3xl p-10 shadow-premium-lg stagger-item">
+        <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 flex items-center gap-3">
+          <Plus className="w-8 h-8 text-blue-600" />
           Quick Actions
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           <button
             onClick={() => onOpenForm('receipt')}
-            className="flex items-center gap-3 p-6 bg-gradient-to-br from-blue-50 via-blue-100 to-indigo-100 dark:from-blue-900/30 dark:via-blue-800/30 dark:to-indigo-800/30 rounded-2xl hover:from-blue-100 hover:via-blue-200 hover:to-indigo-200 dark:hover:from-blue-800/40 dark:hover:via-blue-700/40 dark:hover:to-indigo-700/40 transition-all duration-500 group border-2 border-blue-200 dark:border-blue-700 hover:border-blue-300 dark:hover:border-blue-600 hover:scale-105 hover:shadow-xl"
+            className="flex items-center gap-4 p-8 bg-gradient-to-br from-blue-50 via-blue-100 to-indigo-100 dark:from-blue-900/30 dark:via-blue-800/30 dark:to-indigo-800/30 rounded-3xl hover:from-blue-100 hover:via-blue-200 hover:to-indigo-200 dark:hover:from-blue-800/40 dark:hover:via-blue-700/40 dark:hover:to-indigo-700/40 transition-all duration-500 group border-3 border-blue-200 dark:border-blue-700 hover:border-blue-300 dark:hover:border-blue-600 hover:scale-105 hover:shadow-2xl"
           >
-            <div className="p-2 bg-blue-600 rounded-xl group-hover:scale-110 group-hover:rotate-12 transition-all duration-300">
-              <Receipt className="w-6 h-6 text-white" />
+            <div className="p-4 bg-blue-600 rounded-2xl group-hover:scale-110 group-hover:rotate-12 transition-all duration-300 shadow-lg">
+              <Receipt className="w-8 h-8 text-white" />
             </div>
             <div className="text-left">
-              <p className="font-bold text-blue-900 dark:text-blue-100 text-lg">Add Receipt</p>
-              <p className="text-sm text-blue-700 dark:text-blue-300 font-medium">Record new payment</p>
+              <p className="font-bold text-blue-900 dark:text-blue-100 text-xl">Add Receipt</p>
+              <p className="text-base text-blue-700 dark:text-blue-300 font-semibold">Record new payment</p>
             </div>
           </button>
 
           <button
             onClick={() => onOpenForm('client')}
-            className="flex items-center gap-3 p-6 bg-gradient-to-br from-green-50 via-green-100 to-emerald-100 dark:from-green-900/30 dark:via-green-800/30 dark:to-emerald-800/30 rounded-2xl hover:from-green-100 hover:via-green-200 hover:to-emerald-200 dark:hover:from-green-800/40 dark:hover:via-green-700/40 dark:hover:to-emerald-700/40 transition-all duration-500 group border-2 border-green-200 dark:border-green-700 hover:border-green-300 dark:hover:border-green-600 hover:scale-105 hover:shadow-xl"
+            className="flex items-center gap-4 p-8 bg-gradient-to-br from-green-50 via-green-100 to-emerald-100 dark:from-green-900/30 dark:via-green-800/30 dark:to-emerald-800/30 rounded-3xl hover:from-green-100 hover:via-green-200 hover:to-emerald-200 dark:hover:from-green-800/40 dark:hover:via-green-700/40 dark:hover:to-emerald-700/40 transition-all duration-500 group border-3 border-green-200 dark:border-green-700 hover:border-green-300 dark:hover:border-green-600 hover:scale-105 hover:shadow-2xl"
           >
-            <div className="p-2 bg-green-600 rounded-xl group-hover:scale-110 group-hover:rotate-12 transition-all duration-300">
-              <Users className="w-6 h-6 text-white" />
+            <div className="p-4 bg-green-600 rounded-2xl group-hover:scale-110 group-hover:rotate-12 transition-all duration-300 shadow-lg">
+              <Users className="w-8 h-8 text-white" />
             </div>
             <div className="text-left">
-              <p className="font-bold text-green-900 dark:text-green-100 text-lg">Add Client</p>
-              <p className="text-sm text-green-700 dark:text-green-300 font-medium">New client profile</p>
+              <p className="font-bold text-green-900 dark:text-green-100 text-xl">Add Client</p>
+              <p className="text-base text-green-700 dark:text-green-300 font-semibold">New client profile</p>
             </div>
           </button>
 
           <button
             onClick={() => onOpenForm('expense')}
-            className="flex items-center gap-3 p-6 bg-gradient-to-br from-red-50 via-red-100 to-pink-100 dark:from-red-900/30 dark:via-red-800/30 dark:to-pink-800/30 rounded-2xl hover:from-red-100 hover:via-red-200 hover:to-pink-200 dark:hover:from-red-800/40 dark:hover:via-red-700/40 dark:hover:to-pink-700/40 transition-all duration-500 group border-2 border-red-200 dark:border-red-700 hover:border-red-300 dark:hover:border-red-600 hover:scale-105 hover:shadow-xl"
+            className="flex items-center gap-4 p-8 bg-gradient-to-br from-red-50 via-red-100 to-pink-100 dark:from-red-900/30 dark:via-red-800/30 dark:to-pink-800/30 rounded-3xl hover:from-red-100 hover:via-red-200 hover:to-pink-200 dark:hover:from-red-800/40 dark:hover:via-red-700/40 dark:hover:to-pink-700/40 transition-all duration-500 group border-3 border-red-200 dark:border-red-700 hover:border-red-300 dark:hover:border-red-600 hover:scale-105 hover:shadow-2xl"
           >
-            <div className="p-2 bg-red-600 rounded-xl group-hover:scale-110 group-hover:rotate-12 transition-all duration-300">
-              <CreditCard className="w-6 h-6 text-white" />
+            <div className="p-4 bg-red-600 rounded-2xl group-hover:scale-110 group-hover:rotate-12 transition-all duration-300 shadow-lg">
+              <CreditCard className="w-8 h-8 text-white" />
             </div>
             <div className="text-left">
-              <p className="font-bold text-red-900 dark:text-red-100 text-lg">Add Expense</p>
-              <p className="text-sm text-red-700 dark:text-red-300 font-medium">Record expense</p>
+              <p className="font-bold text-red-900 dark:text-red-100 text-xl">Add Expense</p>
+              <p className="text-base text-red-700 dark:text-red-300 font-semibold">Record expense</p>
             </div>
           </button>
 
           <button
             onClick={() => onOpenForm('vault')}
-            className="flex items-center gap-3 p-6 bg-gradient-to-br from-purple-50 via-purple-100 to-violet-100 dark:from-purple-900/30 dark:via-purple-800/30 dark:to-violet-800/30 rounded-2xl hover:from-purple-100 hover:via-purple-200 hover:to-violet-200 dark:hover:from-purple-800/40 dark:hover:via-purple-700/40 dark:hover:to-violet-700/40 transition-all duration-500 group border-2 border-purple-200 dark:border-purple-700 hover:border-purple-300 dark:hover:border-purple-600 hover:scale-105 hover:shadow-xl"
+            className="flex items-center gap-4 p-8 bg-gradient-to-br from-purple-50 via-purple-100 to-violet-100 dark:from-purple-900/30 dark:via-purple-800/30 dark:to-violet-800/30 rounded-3xl hover:from-purple-100 hover:via-purple-200 hover:to-violet-200 dark:hover:from-purple-800/40 dark:hover:via-purple-700/40 dark:hover:to-violet-700/40 transition-all duration-500 group border-3 border-purple-200 dark:border-purple-700 hover:border-purple-300 dark:hover:border-purple-600 hover:scale-105 hover:shadow-2xl"
           >
-            <div className="p-2 bg-purple-600 rounded-xl group-hover:scale-110 group-hover:rotate-12 transition-all duration-300">
-              <Shield className="w-6 h-6 text-white" />
+            <div className="p-4 bg-purple-600 rounded-2xl group-hover:scale-110 group-hover:rotate-12 transition-all duration-300 shadow-lg">
+              <Shield className="w-8 h-8 text-white" />
             </div>
             <div className="text-left">
-              <p className="font-bold text-purple-900 dark:text-purple-100 text-lg">Upload Document</p>
-              <p className="text-sm text-purple-700 dark:text-purple-300 font-medium">Secure vault</p>
+              <p className="font-bold text-purple-900 dark:text-purple-100 text-xl">Upload Document</p>
+              <p className="text-base text-purple-700 dark:text-purple-300 font-semibold">Secure vault</p>
             </div>
           </button>
         </div>
       </div>
 
       {/* Recent Activity & System Status */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Recent Receipts */}
-        <div className="glass-card rounded-3xl p-8 shadow-premium-lg stagger-item">
+        <div className="glass-card rounded-3xl p-10 shadow-premium-lg stagger-item">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <Receipt className="w-6 h-6 text-blue-600" />
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+              <Receipt className="w-8 h-8 text-blue-600" />
               Recent Receipts
             </h3>
             <button
               onClick={() => onPageChange('receipts')}
-              className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-all duration-300 flex items-center gap-1 text-sm font-semibold hover:scale-105"
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-all duration-300 flex items-center gap-2 text-base font-bold hover:scale-105"
             >
-              View All <ArrowRight className="w-4 h-4" />
+              View All <ArrowRight className="w-5 h-5" />
             </button>
           </div>
           
-          <div className="space-y-4">
+          <div className="space-y-5">
             {recentReceipts.length > 0 ? (
               recentReceipts.map((receipt, index) => (
                 <div 
                   key={receipt.id} 
-                  className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 rounded-2xl hover:from-blue-50 hover:to-blue-100 dark:hover:from-blue-900/20 dark:hover:to-blue-800/20 transition-all duration-300 cursor-pointer hover:scale-102 hover:shadow-lg border border-gray-200 dark:border-gray-600"
+                  className="flex items-center justify-between p-6 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 rounded-2xl hover:from-blue-50 hover:to-blue-100 dark:hover:from-blue-900/20 dark:hover:to-blue-800/20 transition-all duration-300 cursor-pointer hover:scale-102 hover:shadow-xl border-2 border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500"
                   onClick={() => onPageChange('receipts')}
                 >
                   <div>
-                    <p className="font-bold text-gray-900 dark:text-white text-lg">{receipt.clientName}</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
-                      {format(receipt.date, 'MMM dd, yyyy')}
+                    <p className="font-bold text-gray-900 dark:text-white text-xl">{receipt.clientName}</p>
+                    <p className="text-base text-gray-600 dark:text-gray-400 font-semibold">
+                      {format(receipt.date instanceof Date ? receipt.date : new Date(receipt.date), 'MMM dd, yyyy')}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-green-600 text-xl">₨{receipt.amount.toLocaleString()}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 capitalize font-medium">
+                    <p className="font-bold text-green-600 text-2xl">₨{receipt.amount.toLocaleString()}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 capitalize font-semibold">
                       {receipt.paymentMethod.replace('_', ' ')}
                     </p>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Receipt className="w-8 h-8 text-gray-400" />
+              <div className="text-center py-16">
+                <div className="w-20 h-20 bg-gray-100 dark:bg-gray-700 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                  <Receipt className="w-10 h-10 text-gray-400" />
                 </div>
-                <p className="text-gray-500 dark:text-gray-400 font-medium">No receipts yet</p>
+                <p className="text-gray-500 dark:text-gray-400 font-bold text-lg mb-4">No receipts yet</p>
                 <button
                   onClick={() => onOpenForm('receipt')}
-                  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-300 text-sm font-semibold hover:scale-105"
+                  className="px-6 py-3 btn-premium text-white rounded-2xl transition-all duration-300 text-base font-bold hover:scale-105"
                 >
                   Add your first receipt
                 </button>
@@ -583,62 +631,62 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
         </div>
 
         {/* System Status */}
-        <div className="glass-card rounded-3xl p-8 shadow-premium-lg stagger-item">
+        <div className="glass-card rounded-3xl p-10 shadow-premium-lg stagger-item">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <Activity className="w-6 h-6 text-green-600" />
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+              <Activity className="w-8 h-8 text-green-600" />
               System Status
             </h3>
-            <div className={`w-4 h-4 rounded-full ${syncStatus.isOnline ? 'bg-green-500 shadow-green-500/50' : 'bg-red-500 shadow-red-500/50'} animate-pulse shadow-lg`}></div>
+            <div className={`w-6 h-6 rounded-full ${syncStatus.isOnline ? 'bg-green-500 shadow-green-500/50' : 'bg-red-500 shadow-red-500/50'} animate-pulse shadow-xl`}></div>
           </div>
           
-          <div className="space-y-5">
-            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 rounded-2xl border border-gray-200 dark:border-gray-600">
-              <div className="flex items-center gap-3">
+          <div className="space-y-6">
+            <div className="flex items-center justify-between p-6 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 rounded-2xl border-2 border-gray-200 dark:border-gray-600 hover:border-green-300 dark:hover:border-green-500 transition-all duration-300">
+              <div className="flex items-center gap-4">
                 {syncStatus.isOnline ? (
-                  <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-xl">
-                    <CheckCircle className="w-5 h-5 text-green-600" />
+                  <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-2xl shadow-lg">
+                    <CheckCircle className="w-6 h-6 text-green-600" />
                   </div>
                 ) : (
-                  <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-xl">
-                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                  <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-2xl shadow-lg">
+                    <AlertTriangle className="w-6 h-6 text-red-600" />
                   </div>
                 )}
-                <span className="font-bold text-gray-900 dark:text-white">
+                <span className="font-bold text-gray-900 dark:text-white text-lg">
                   Firebase Connection
                 </span>
               </div>
-              <span className={`text-sm font-bold px-3 py-1 rounded-full ${
+              <span className={`text-base font-bold px-4 py-2 rounded-full ${
                 syncStatus.isOnline ? 'text-green-600' : 'text-red-600'
               }`}>
                 {syncStatus.isOnline ? 'Connected' : 'Offline'}
               </span>
             </div>
 
-            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 rounded-2xl border border-gray-200 dark:border-gray-600">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
-                  <Clock className="w-5 h-5 text-blue-600" />
+            <div className="flex items-center justify-between p-6 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 rounded-2xl border-2 border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 transition-all duration-300">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-2xl shadow-lg">
+                  <Clock className="w-6 h-6 text-blue-600" />
                 </div>
-                <span className="font-bold text-gray-900 dark:text-white">
+                <span className="font-bold text-gray-900 dark:text-white text-lg">
                   Last Sync
                 </span>
               </div>
-              <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">
+              <span className="text-base font-bold text-gray-600 dark:text-gray-400">
                 {syncStatus.lastSync ? format(syncStatus.lastSync, 'HH:mm') : 'Never'}
               </span>
             </div>
 
-            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 rounded-2xl border border-gray-200 dark:border-gray-600">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-xl">
-                  <RefreshCw className="w-5 h-5 text-orange-600" />
+            <div className="flex items-center justify-between p-6 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 rounded-2xl border-2 border-gray-200 dark:border-gray-600 hover:border-orange-300 dark:hover:border-orange-500 transition-all duration-300">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-2xl shadow-lg">
+                  <RefreshCw className="w-6 h-6 text-orange-600" />
                 </div>
-                <span className="font-bold text-gray-900 dark:text-white">
+                <span className="font-bold text-gray-900 dark:text-white text-lg">
                   Pending Changes
                 </span>
               </div>
-              <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">
+              <span className="text-base font-bold text-gray-600 dark:text-gray-400">
                 {syncStatus.queueLength}
               </span>
             </div>
@@ -647,9 +695,9 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
               <button
                 onClick={handleForceSync}
                 disabled={syncing}
-                className="w-full flex items-center justify-center gap-2 px-6 py-4 btn-premium text-white rounded-2xl transition-all duration-300 disabled:opacity-50 font-semibold"
+                className="w-full flex items-center justify-center gap-3 px-8 py-5 btn-premium text-white rounded-2xl transition-all duration-300 disabled:opacity-50 font-bold text-lg"
               >
-                <RefreshCw className={`w-5 h-5 ${syncing ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`w-6 h-6 ${syncing ? 'animate-spin' : ''}`} />
                 {syncing ? 'Syncing...' : 'Sync Now'}
               </button>
             )}
@@ -658,53 +706,53 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
       </div>
 
       {/* Business Insights */}
-      <div className="bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-600 text-white rounded-3xl p-10 shadow-premium-lg stagger-item animate-gradient-flow">
+      <div className="bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-600 text-white rounded-3xl p-12 shadow-premium-lg stagger-item animate-gradient-flow">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h3 className="text-3xl font-bold mb-3 text-shadow">Business Insights</h3>
-            <p className="text-indigo-100 text-lg font-medium">Key performance indicators for your tax office</p>
+            <h3 className="text-4xl font-bold mb-4 text-shadow-lg">Business Insights</h3>
+            <p className="text-indigo-100 text-xl font-semibold">Key performance indicators for your tax office</p>
           </div>
-          <div className="bg-white/20 p-4 rounded-3xl backdrop-blur-sm">
-            <BarChart3 className="w-12 h-12 text-white" />
+          <div className="bg-white/20 p-6 rounded-3xl backdrop-blur-sm shadow-xl">
+            <BarChart3 className="w-16 h-16 text-white drop-shadow-lg" />
           </div>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-6 border border-white/30 hover:bg-white/20 transition-all duration-300">
-            <p className="text-indigo-100 text-sm mb-2 font-semibold uppercase tracking-wide">Average Receipt Value</p>
-            <p className="text-3xl font-bold text-shadow">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+          <div className="bg-white/15 backdrop-blur-sm rounded-3xl p-8 border-2 border-white/30 hover:bg-white/20 transition-all duration-300 hover:scale-105">
+            <p className="text-indigo-100 text-base mb-3 font-bold uppercase tracking-wider">Average Receipt Value</p>
+            <p className="text-4xl font-bold text-shadow-lg">
               ₨{stats.totalReceipts > 0 ? Math.round(stats.totalIncome / stats.totalReceipts).toLocaleString() : 0}
             </p>
           </div>
           
-          <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-6 border border-white/30 hover:bg-white/20 transition-all duration-300">
-            <p className="text-indigo-100 text-sm mb-2 font-semibold uppercase tracking-wide">Client Retention</p>
-            <p className="text-3xl font-bold text-shadow">
+          <div className="bg-white/15 backdrop-blur-sm rounded-3xl p-8 border-2 border-white/30 hover:bg-white/20 transition-all duration-300 hover:scale-105">
+            <p className="text-indigo-100 text-base mb-3 font-bold uppercase tracking-wider">Client Retention</p>
+            <p className="text-4xl font-bold text-shadow-lg">
               {stats.totalClients > 0 ? Math.round((stats.activeClients / stats.totalClients) * 100) : 0}%
             </p>
           </div>
           
-          <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-6 border border-white/30 hover:bg-white/20 transition-all duration-300">
-            <p className="text-indigo-100 text-sm mb-2 font-semibold uppercase tracking-wide">Employee Attendance</p>
-            <p className="text-3xl font-bold text-shadow">
+          <div className="bg-white/15 backdrop-blur-sm rounded-3xl p-8 border-2 border-white/30 hover:bg-white/20 transition-all duration-300 hover:scale-105">
+            <p className="text-indigo-100 text-base mb-3 font-bold uppercase tracking-wider">Employee Attendance</p>
+            <p className="text-4xl font-bold text-shadow-lg">
               {stats.totalEmployees > 0 ? Math.round((stats.presentToday / stats.totalEmployees) * 100) : 0}%
             </p>
           </div>
         </div>
         
-        <div className="mt-8 flex gap-6">
+        <div className="mt-10 flex gap-8">
           <button
             onClick={() => onPageChange('analytics')}
-            className="flex items-center gap-3 px-8 py-4 bg-white/20 backdrop-blur-sm rounded-2xl hover:bg-white/30 transition-all duration-300 border border-white/30 hover:scale-105 font-semibold"
+            className="flex items-center gap-4 px-10 py-5 bg-white/20 backdrop-blur-sm rounded-3xl hover:bg-white/30 transition-all duration-300 border-2 border-white/30 hover:scale-105 font-bold text-lg shadow-xl"
           >
-            <BarChart3 className="w-6 h-6" />
+            <BarChart3 className="w-8 h-8" />
             View Analytics
           </button>
           <button
             onClick={() => onPageChange('tax-calculator')}
-            className="flex items-center gap-3 px-8 py-4 bg-white/20 backdrop-blur-sm rounded-2xl hover:bg-white/30 transition-all duration-300 border border-white/30 hover:scale-105 font-semibold"
+            className="flex items-center gap-4 px-10 py-5 bg-white/20 backdrop-blur-sm rounded-3xl hover:bg-white/30 transition-all duration-300 border-2 border-white/30 hover:scale-105 font-bold text-lg shadow-xl"
           >
-            <Calculator className="w-6 h-6" />
+            <Calculator className="w-8 h-8" />
             Tax Calculator
           </button>
         </div>
