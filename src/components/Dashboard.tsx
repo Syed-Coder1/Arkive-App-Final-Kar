@@ -281,80 +281,80 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div 
           onClick={() => onPageChange('receipts')}
-          className="dashboard-metric-card bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 text-white rounded-3xl p-8 shadow-premium-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-500 cursor-pointer group stagger-item animate-gradient-flow"
+          className="bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 text-white rounded-3xl p-6 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 cursor-pointer group"
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-blue-100 text-sm font-bold tracking-wider uppercase mb-2">Total Revenue</p>
-              <p className="text-5xl font-bold mb-3 text-shadow-lg">₨{stats.totalIncome.toLocaleString()}</p>
-              <p className="text-blue-200 text-base font-semibold">{stats.totalReceipts} receipts</p>
+              <p className="text-blue-100 text-sm font-medium uppercase mb-2">Total Revenue</p>
+              <p className="text-3xl font-bold mb-2">₨{stats.totalIncome.toLocaleString()}</p>
+              <p className="text-blue-200 text-sm">{stats.totalReceipts} receipts</p>
             </div>
-            <div className="bg-white/20 p-5 rounded-3xl group-hover:bg-white/30 transition-all duration-300 group-hover:scale-110 group-hover:rotate-12 backdrop-blur-sm">
-              <DollarSign className="w-12 h-12 drop-shadow-lg" />
+            <div className="bg-white/20 p-4 rounded-2xl group-hover:bg-white/30 transition-all duration-300">
+              <DollarSign className="w-8 h-8 text-white" />
             </div>
           </div>
-          <div className="mt-8 flex items-center text-blue-200 text-base font-bold">
-            <ArrowRight className="w-4 h-4 mr-1" />
+          <div className="mt-4 flex items-center text-blue-200 text-sm">
+            <ArrowRight className="w-4 h-4 mr-2" />
             View all receipts
           </div>
         </div>
 
         <div 
           onClick={() => onPageChange('expenses')}
-          className="dashboard-metric-card bg-gradient-to-br from-red-500 via-red-600 to-pink-600 text-white rounded-3xl p-8 shadow-premium-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-500 cursor-pointer group stagger-item animate-gradient-flow"
+          className="bg-gradient-to-br from-red-500 via-red-600 to-pink-600 text-white rounded-3xl p-6 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 cursor-pointer group"
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-red-100 text-sm font-bold tracking-wider uppercase mb-2">Total Expenses</p>
-              <p className="text-5xl font-bold mb-3 text-shadow-lg">₨{stats.totalExpenses.toLocaleString()}</p>
-              <p className="text-red-200 text-base font-semibold">{stats.totalExpenses > 0 ? expenses.length : 0} entries</p>
+              <p className="text-red-100 text-sm font-medium uppercase mb-2">Total Expenses</p>
+              <p className="text-3xl font-bold mb-2">₨{stats.totalExpenses.toLocaleString()}</p>
+              <p className="text-red-200 text-sm">{stats.totalExpenses > 0 ? expenses.length : 0} entries</p>
             </div>
-            <div className="bg-white/20 p-5 rounded-3xl group-hover:bg-white/30 transition-all duration-300 group-hover:scale-110 group-hover:rotate-12 backdrop-blur-sm">
-              <CreditCard className="w-12 h-12 drop-shadow-lg" />
+            <div className="bg-white/20 p-4 rounded-2xl group-hover:bg-white/30 transition-all duration-300">
+              <CreditCard className="w-8 h-8 text-white" />
             </div>
           </div>
-          <div className="mt-8 flex items-center text-red-200 text-base font-bold">
-            <ArrowRight className="w-4 h-4 mr-1" />
+          <div className="mt-4 flex items-center text-red-200 text-sm">
+            <ArrowRight className="w-4 h-4 mr-2" />
             Manage expenses
           </div>
         </div>
 
         <div 
           onClick={() => onPageChange('clients')}
-          className="dashboard-metric-card bg-gradient-to-br from-green-500 via-green-600 to-emerald-600 text-white rounded-3xl p-8 shadow-premium-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-500 cursor-pointer group stagger-item animate-gradient-flow"
+          className="bg-gradient-to-br from-green-500 via-green-600 to-emerald-600 text-white rounded-3xl p-6 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 cursor-pointer group"
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-green-100 text-sm font-bold tracking-wider uppercase mb-2">Active Clients</p>
-              <p className="text-5xl font-bold mb-3 text-shadow-lg">{stats.activeClients}</p>
-              <p className="text-green-200 text-base font-semibold">of {stats.totalClients} total</p>
+              <p className="text-green-100 text-sm font-medium uppercase mb-2">Active Clients</p>
+              <p className="text-3xl font-bold mb-2">{stats.activeClients}</p>
+              <p className="text-green-200 text-sm">of {stats.totalClients} total</p>
             </div>
-            <div className="bg-white/20 p-5 rounded-3xl group-hover:bg-white/30 transition-all duration-300 group-hover:scale-110 group-hover:rotate-12 backdrop-blur-sm">
-              <Users className="w-12 h-12 drop-shadow-lg" />
+            <div className="bg-white/20 p-4 rounded-2xl group-hover:bg-white/30 transition-all duration-300">
+              <Users className="w-8 h-8 text-white" />
             </div>
           </div>
-          <div className="mt-8 flex items-center text-green-200 text-base font-bold">
-            <ArrowRight className="w-4 h-4 mr-1" />
+          <div className="mt-4 flex items-center text-green-200 text-sm">
+            <ArrowRight className="w-4 h-4 mr-2" />
             View all clients
           </div>
         </div>
 
         <div 
           onClick={() => onPageChange('employees')}
-          className="dashboard-metric-card bg-gradient-to-br from-purple-500 via-purple-600 to-violet-600 text-white rounded-3xl p-8 shadow-premium-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-500 cursor-pointer group stagger-item animate-gradient-flow"
+          className="bg-gradient-to-br from-purple-500 via-purple-600 to-violet-600 text-white rounded-3xl p-6 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 cursor-pointer group"
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-purple-100 text-sm font-bold tracking-wider uppercase mb-2">Employees</p>
-              <p className="text-5xl font-bold mb-3 text-shadow-lg">{stats.activeEmployees}</p>
-              <p className="text-purple-200 text-base font-semibold">{stats.presentToday} present today</p>
+              <p className="text-purple-100 text-sm font-medium uppercase mb-2">Employees</p>
+              <p className="text-3xl font-bold mb-2">{stats.activeEmployees}</p>
+              <p className="text-purple-200 text-sm">{stats.presentToday} present today</p>
             </div>
-            <div className="bg-white/20 p-5 rounded-3xl group-hover:bg-white/30 transition-all duration-300 group-hover:scale-110 group-hover:rotate-12 backdrop-blur-sm">
-              <Users className="w-12 h-12 drop-shadow-lg" />
+            <div className="bg-white/20 p-4 rounded-2xl group-hover:bg-white/30 transition-all duration-300">
+              <Users className="w-8 h-8 text-white" />
             </div>
           </div>
-          <div className="mt-8 flex items-center text-purple-200 text-base font-bold">
-            <ArrowRight className="w-4 h-4 mr-1" />
+          <div className="mt-4 flex items-center text-purple-200 text-sm">
+            <ArrowRight className="w-4 h-4 mr-2" />
             Manage employees
           </div>
         </div>
