@@ -31,7 +31,16 @@ class DatabaseService {
   }
 
   private async ensureInitialized(): Promise<void> {
-    if (this.initPromise) await this.initPromise;
+    if (this.initPromise) {
+      try {
+        await this.initPromise;
+      } catch (error) {
+        console.error('Database initialization failed:', error);
+        // Retry initialization
+        this.initPromise = this.init();
+        await this.initPromise;
+      }
+    }
   }
 
   async init(): Promise<void> {
@@ -49,7 +58,10 @@ class DatabaseService {
           alert("A new version of the app is available. Please refresh.");
         };
 
-        this.performAutoSync().catch(console.warn);
+        // Delay auto-sync to ensure everything is initialized
+        setTimeout(() => {
+          this.performAutoSync().catch(console.warn);
+        }, 1000);
         resolve();
       };
 

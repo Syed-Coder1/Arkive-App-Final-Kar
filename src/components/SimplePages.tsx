@@ -22,7 +22,6 @@ import { useExpenses, useActivities, useNotifications } from '../hooks/useDataba
 import { useAuth } from '../contexts/AuthContext';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { db } from '../services/database';
-import { exportService } from '../services/export';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'];
@@ -42,6 +41,7 @@ export function Expenses({ showForm: externalShowForm, onCloseForm }: ExpensesPr
   const [filterPeriod, setFilterPeriod] = useState('all');
   const [showPreview, setShowPreview] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<any>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   
   const [formData, setFormData] = useState({
     description: '',
@@ -55,6 +55,11 @@ export function Expenses({ showForm: externalShowForm, onCloseForm }: ExpensesPr
       setShowForm(externalShowForm);
     }
   }, [externalShowForm]);
+
+  const showMessage = (text: string, type: 'success' | 'error') => {
+    setMessage({ text, type });
+    setTimeout(() => setMessage(null), 3000);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,8 +83,11 @@ export function Expenses({ showForm: externalShowForm, onCloseForm }: ExpensesPr
       if (onCloseForm) {
         onCloseForm();
       }
+      
+      showMessage('Expense created successfully!', 'success');
     } catch (error) {
       console.error('Error creating expense:', error);
+      showMessage('Error creating expense', 'error');
     }
   };
 
@@ -142,6 +150,10 @@ export function Expenses({ showForm: externalShowForm, onCloseForm }: ExpensesPr
 
   const handleExport = async () => {
     try {
+      // Use the existing export service
+      const { exportService } = await import('../services/export');
+      
+      // Create a simple export for expenses
       const data = filteredExpenses.map(expense => ({
         'Date': format(expense.date, 'yyyy-MM-dd'),
         'Description': expense.description,
@@ -150,13 +162,17 @@ export function Expenses({ showForm: externalShowForm, onCloseForm }: ExpensesPr
         'Created Date': format(expense.createdAt, 'yyyy-MM-dd HH:mm:ss'),
       }));
 
-      const ws = XLSX.utils.json_to_sheet(data);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Expenses');
-      XLSX.writeFile(wb, `expenses_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+      // Create and download the file
+      const { utils, writeFile } = await import('xlsx');
+      const ws = utils.json_to_sheet(data);
+      const wb = utils.book_new();
+      utils.book_append_sheet(wb, ws, 'Expenses');
+      writeFile(wb, `expenses_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+      
+      showMessage('Expenses exported successfully!', 'success');
     } catch (error) {
       console.error('Export error:', error);
-      alert('Error exporting expenses');
+      showMessage('Error exporting expenses', 'error');
     }
   };
 

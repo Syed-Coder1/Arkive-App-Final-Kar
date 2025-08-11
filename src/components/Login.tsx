@@ -44,10 +44,15 @@ export function Login() {
 
   const checkConnectionStatus = async () => {
     try {
-      const connected = await firebaseSync.checkConnection();
-      setSyncStatus(connected ? 'Connected to Firebase' : 'Offline Mode');
+      if (isOnline) {
+        const connected = await firebaseSync.checkConnection();
+        setSyncStatus(connected ? 'Connected to Firebase' : 'Connection Issues');
+      } else {
+        setSyncStatus('Offline Mode');
+      }
     } catch (error) {
       setSyncStatus('Connection Error');
+      console.warn('Connection check failed:', error);
     }
   };
 

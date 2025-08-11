@@ -24,46 +24,61 @@ export function useClients() {
   useEffect(() => {
     fetchClients();
     
-    // Setup realtime listener
-    firebaseSync.setupRealtimeListener('clients', (remoteData: Client[]) => {
-      if (Array.isArray(remoteData)) { // Ensure it's an array
-        setClients(prevClients => {
-          // Create a map to merge data properly
-          const clientMap = new Map<string, Client>();
-          
-          // Add existing clients
-          prevClients.forEach(client => {
-            if (client && client.id) {
-              clientMap.set(client.id, client);
-            }
-          });
-          
-          // Merge remote data (Firebase data takes precedence)
-          remoteData.forEach(remoteClient => {
-            if (remoteClient && remoteClient.id) {
-              // Convert date strings to Date objects
-              const processedClient = {
-                ...remoteClient,
-                createdAt: remoteClient.createdAt instanceof Date ? remoteClient.createdAt : new Date(remoteClient.createdAt),
-                updatedAt: remoteClient.updatedAt instanceof Date ? remoteClient.updatedAt : new Date(remoteClient.updatedAt),
-                lastModified: remoteClient.lastModified instanceof Date ? remoteClient.lastModified : new Date(remoteClient.lastModified || remoteClient.updatedAt)
-              };
-              clientMap.set(remoteClient.id, processedClient);
-            }
-          });
-          
-          return Array.from(clientMap.values()).sort((a, b) => 
-            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-          );
-        });
-        console.log(`✅ Clients updated from Firebase: ${remoteData.length} items`);
-      } else {
-        console.warn('⚠️ Invalid clients data from Firebase:', remoteData);
-      }
-    });
+    // Setup realtime listener with error handling
+    try {
+      firebaseSync.setupRealtimeListener('clients', (remoteData: Client[]) => {
+        try {
+          if (Array.isArray(remoteData)) {
+            setClients(prevClients => {
+              const clientMap = new Map<string, Client>();
+              
+              // Add existing clients
+              prevClients.forEach(client => {
+                if (client && client.id) {
+                  clientMap.set(client.id, client);
+                }
+              });
+              
+              // Merge remote data (Firebase data takes precedence)
+              remoteData.forEach(remoteClient => {
+                if (remoteClient && remoteClient.id) {
+                  try {
+                    const processedClient = {
+                      ...remoteClient,
+                      createdAt: remoteClient.createdAt instanceof Date ? remoteClient.createdAt : new Date(remoteClient.createdAt),
+                      updatedAt: remoteClient.updatedAt instanceof Date ? remoteClient.updatedAt : new Date(remoteClient.updatedAt),
+                      lastModified: remoteClient.lastModified instanceof Date ? remoteClient.lastModified : new Date(remoteClient.lastModified || remoteClient.updatedAt)
+                    };
+                    clientMap.set(remoteClient.id, processedClient);
+                  } catch (dateError) {
+                    console.warn('Error processing client dates:', dateError);
+                    clientMap.set(remoteClient.id, remoteClient);
+                  }
+                }
+              });
+              
+              return Array.from(clientMap.values()).sort((a, b) => 
+                new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+              );
+            });
+            console.log(`✅ Clients updated from Firebase: ${remoteData.length} items`);
+          } else {
+            console.warn('⚠️ Invalid clients data from Firebase:', remoteData);
+          }
+        } catch (error) {
+          console.error('Error processing clients realtime data:', error);
+        }
+      });
+    } catch (error) {
+      console.error('Failed to setup clients realtime listener:', error);
+    }
 
     return () => {
-      firebaseSync.removeRealtimeListener('clients');
+      try {
+        firebaseSync.removeRealtimeListener('clients');
+      } catch (error) {
+        console.warn('Error removing clients listener:', error);
+      }
     };
   }, []);
 

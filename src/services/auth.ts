@@ -13,30 +13,34 @@ class AuthService {
       console.log('🔐 Initializing authentication service...');
       
       // Check Firebase connection and sync users
-      const isConnected = await firebaseSync.checkConnection();
-      if (isConnected) {
-        try {
-          console.log('🔄 Syncing users from Firebase...');
-          const firebaseUsers = await firebaseSync.getStoreFromFirebase('users');
-          
-          if (firebaseUsers.length > 0) {
-            // Clear local users and import from Firebase
-            await db.clearStore('users');
-            for (const user of firebaseUsers) {
-              await db.createUserDirect({
-                id: user.id,
-                username: user.username,
-                password: user.password,
-                role: user.role,
-                createdAt: user.createdAt || new Date(),
-                lastLogin: user.lastLogin
-              });
+      try {
+        const isConnected = await firebaseSync.checkConnection();
+        if (isConnected) {
+          try {
+            console.log('🔄 Syncing users from Firebase...');
+            const firebaseUsers = await firebaseSync.getStoreFromFirebase('users');
+            
+            if (firebaseUsers.length > 0) {
+              // Clear local users and import from Firebase
+              await db.clearStore('users');
+              for (const user of firebaseUsers) {
+                await db.createUserDirect({
+                  id: user.id,
+                  username: user.username,
+                  password: user.password,
+                  role: user.role,
+                  createdAt: user.createdAt || new Date(),
+                  lastLogin: user.lastLogin
+                });
+              }
+              console.log(`✅ ${firebaseUsers.length} users synced from Firebase`);
             }
-            console.log(`✅ ${firebaseUsers.length} users synced from Firebase`);
+          } catch (syncError) {
+            console.warn('⚠️ Firebase sync failed, using local data:', syncError);
           }
-        } catch (syncError) {
-          console.warn('⚠️ Firebase sync failed, using local data:', syncError);
         }
+      } catch (connectionError) {
+        console.warn('⚠️ Firebase connection check failed:', connectionError);
       }
 
       // Create default admin if no users exist

@@ -20,18 +20,30 @@ class FirebaseSyncService {
   private maxRetries = 3;
   private syncInProgress = false;
   private connectionCheckInterval: NodeJS.Timeout | null = null;
+  private initialized = false;
 
   constructor() {
     this.deviceId = this.getDeviceId();
-    this.initializeConnectionMonitoring();
-    this.loadSyncQueue();
-    
-    // Process sync queue every 5 seconds when online
-    setInterval(() => {
-      if (this.isOnline && this.syncQueue.length > 0 && !this.syncInProgress) {
-        this.processSyncQueue();
-      }
-    }, 5000);
+    this.init();
+  }
+
+  private async init() {
+    try {
+      this.initializeConnectionMonitoring();
+      this.loadSyncQueue();
+      
+      // Process sync queue every 5 seconds when online
+      setInterval(() => {
+        if (this.isOnline && this.syncQueue.length > 0 && !this.syncInProgress) {
+          this.processSyncQueue().catch(console.warn);
+        }
+      }, 5000);
+      
+      this.initialized = true;
+      console.log('✅ Firebase sync service initialized');
+    } catch (error) {
+      console.error('❌ Firebase sync initialization failed:', error);
+    }
   }
 
   private initializeConnectionMonitoring(): void {
@@ -39,7 +51,7 @@ class FirebaseSyncService {
       this.isOnline = true;
       this.retryAttempts = 0;
       console.log('🌐 Connection restored - processing sync queue');
-      this.processSyncQueue();
+      this.processSyncQueue().catch(console.warn);
     });
 
     window.addEventListener('offline', () => {
@@ -50,9 +62,13 @@ class FirebaseSyncService {
     // Check Firebase connection every 30 seconds
     this.connectionCheckInterval = setInterval(async () => {
       if (this.isOnline) {
-        const connected = await this.checkConnection();
-        if (!connected && this.isOnline) {
-          console.warn('🔥 Firebase connection lost despite being online');
+        try {
+          const connected = await this.checkConnection();
+          if (!connected && this.isOnline) {
+            console.warn('🔥 Firebase connection lost despite being online');
+          }
+        } catch (error) {
+          console.warn('Connection check failed:', error);
         }
       }
     }, 30000);
