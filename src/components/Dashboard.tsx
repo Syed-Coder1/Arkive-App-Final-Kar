@@ -17,7 +17,8 @@ import {
   Shield,
   Clock,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  Calculator
 } from 'lucide-react';
 import { useDatabase } from '../hooks/useDatabase';
 import { useAuth } from '../contexts/AuthContext';

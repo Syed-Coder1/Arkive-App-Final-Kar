@@ -58,7 +58,7 @@ export const TaxCalculator: React.FC = () => {
   const numericInput = useMemo(() => Number(rawInput.replace(/[^\d]/g, '')) || 0, [rawInput]);
 
   // Auto-show results when calculation is available
-  useEffect(() => {
+  React.useEffect(() => {
     if (calc && numericInput > 0) {
       setShowResults(true);
     } else {
