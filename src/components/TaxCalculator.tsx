@@ -6,6 +6,7 @@ import React, { useState, useMemo } from 'react';
 import {
   ArrowLeft,
   Banknote,
+  BarChart3,
   Briefcase,
   Calculator,
   Car,
