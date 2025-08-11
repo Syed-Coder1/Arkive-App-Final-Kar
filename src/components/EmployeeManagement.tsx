@@ -21,8 +21,6 @@ import {
   User
 } from 'lucide-react';
 import { useEmployees, useAttendance } from '../hooks/useDatabase';
-import { useEmployees } from '../hooks/useEmployees';
-import { useAttendance } from '../hooks/useAttendance';
 import { useAuth } from '../contexts/AuthContext';
 import { format } from 'date-fns';
 import { db } from '../services/database';
