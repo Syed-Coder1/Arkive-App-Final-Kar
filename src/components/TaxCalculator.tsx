@@ -52,19 +52,10 @@ export const TaxCalculator: React.FC = () => {
   const [period, setPeriod] = useState<'monthly' | 'annual'>('monthly');
   const [rawInput, setRawInput] = useState('');
   const [includeZakat, setIncludeZakat] = useState(false);
-  const [showResults, setShowResults] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const numericInput = useMemo(() => Number(rawInput.replace(/[^\d]/g, '')) || 0, [rawInput]);
 
-  // Auto-show results when calculation is available
-  React.useEffect(() => {
-    if (calc && numericInput > 0) {
-      setShowResults(true);
-    } else {
-      setShowResults(false);
-    }
-  }, [calc, numericInput]);
 
   /* ---------- Calculation ---------- */
   const calc: TaxCalculation | null = useMemo(() => {
@@ -78,6 +69,8 @@ export const TaxCalculator: React.FC = () => {
     return core.calculateTax(categoryId, numericInput, period === 'monthly', includeZakat);
   }, [categoryId, numericInput, period, includeZakat]);
 
+  // Derive showResults from calc and numericInput
+  const showResults = calc && numericInput > 0;
   /* ---------- Helpers ---------- */
   const fmt = (n: number) => `₨${n.toLocaleString('en-PK')}`;
   const iconMap: Record<string, React.ElementType> = {
@@ -220,7 +213,6 @@ Please consult a qualified tax advisor for precise calculations.`;
         onClick={() => {
           setStep('category');
           setRawInput('');
-          setShowResults(false);
         }}
         className="flex items-center gap-2 px-6 py-3 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all duration-300 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
       >

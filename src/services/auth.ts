@@ -11,18 +11,20 @@ class AuthService {
   async init(): Promise<void> {
     try {
       console.log('🔐 Initializing authentication service...');
+      let isConnected = false;
       
       // Check Firebase connection and sync users
       try {
-        const isConnected = await firebaseSync.checkConnection();
+        isConnected = await firebaseSync.checkConnection();
         if (isConnected) {
           try {
             console.log('🔄 Syncing users from Firebase...');
             const firebaseUsers = await firebaseSync.getStoreFromFirebase('users');
             
+            // Always clear local users and sync from Firebase to ensure consistency
+            await db.clearStore('users');
+            
             if (firebaseUsers.length > 0) {
-              // Clear local users and import from Firebase
-              await db.clearStore('users');
               for (const user of firebaseUsers) {
                 await db.createUserDirect({
                   id: user.id,
@@ -47,22 +49,26 @@ class AuthService {
       const allUsers = await db.getAllUsers();
       if (allUsers.length === 0) {
         console.log('👤 Creating default admin user...');
-        const defaultAdmin = await db.createUserDirect({
-          username: 'admin',
-          password: 'admin123',
-          role: 'admin',
-          createdAt: new Date(),
-        });
-
-        // Sync to Firebase if connected
-        if (isConnected) {
-          await firebaseSync.addToSyncQueue({
-            type: 'create',
-            store: 'users',
-            data: defaultAdmin
+        try {
+          const defaultAdmin = await db.createUserDirect({
+            username: 'admin',
+            password: 'admin123',
+            role: 'admin',
+            createdAt: new Date(),
           });
+
+          // Sync to Firebase if connected
+          if (isConnected) {
+            await firebaseSync.addToSyncQueue({
+              type: 'create',
+              store: 'users',
+              data: defaultAdmin
+            });
+          }
+          console.log('✅ Default admin user created');
+        } catch (createError) {
+          console.warn('⚠️ Failed to create default admin user:', createError);
         }
-        console.log('✅ Default admin user created');
       }
 
       // Check for stored session
