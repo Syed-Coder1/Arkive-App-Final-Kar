@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   User, Settings as SettingsIcon, Shield, Download, Upload, 
   Trash2, Users, Moon, Sun, Monitor, Save, AlertCircle, CheckCircle, Wifi, WifiOff,
-  RefreshCw, Cloud, Database
+  RefreshCw, Cloud, Database, AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../services/database';
@@ -33,17 +33,7 @@ const Settings: React.FC = () => {
   const [newUserData, setNewUserData] = useState({
     username: '',
     password: '',
-    role: 'employee' as 'admin' | 'employee'
-  });
-
-  // App settings
-  const [appSettings, setAppSettings] = useState({
-    theme: 'system' as 'light' | 'dark' | 'system',
-    notifications: true,
-    autoBackup: false,
-    language: 'en',
-    sessionTimeout: 30,
-    maxLoginAttempts: 5
+    role: 'admin' as 'admin' | 'employee'
   });
 
   useEffect(() => {
@@ -57,7 +47,7 @@ const Settings: React.FC = () => {
 
   const loadSyncStatus = async () => {
     try {
-      const status = await db.getSyncStatus();
+      const status = await firebaseSync.getSyncStatus();
       setSyncStatus(status);
     } catch (error) {
       console.error('Error loading sync status:', error);
@@ -125,6 +115,13 @@ const Settings: React.FC = () => {
       return;
     }
 
+    // Check admin limit
+    const adminCount = users.filter(u => u.role === 'admin').length;
+    if (newUserData.role === 'admin' && adminCount >= 2) {
+      showMessage('Maximum number of admin accounts (2) reached', 'error');
+      return;
+    }
+
     try {
       setLoading(true);
       
@@ -143,7 +140,7 @@ const Settings: React.FC = () => {
         createdAt: new Date(),
       });
 
-      setNewUserData({ username: '', password: '', role: 'employee' });
+      setNewUserData({ username: '', password: '', role: 'admin' });
       loadUsers();
       showMessage('User created successfully!', 'success');
     } catch (error) {
@@ -180,63 +177,52 @@ const Settings: React.FC = () => {
     }
   };
 
-  const saveSettings = async () => {
-    setLoading(true);
+  const handleWipeAllData = async () => {
+    if (!confirm('⚠️ WARNING: This will permanently delete ALL data from both local storage and Firebase. This action CANNOT be undone!')) {
+      return;
+    }
+
+    const confirmText = prompt('Type "WIPE ALL DATA" to confirm this destructive action:');
+    if (confirmText !== 'WIPE ALL DATA') {
+      showMessage('Data wipe cancelled - confirmation text did not match', 'error');
+      return;
+    }
+
     try {
-      localStorage.setItem('appSettings', JSON.stringify(appSettings));
+      setLoading(true);
+      setSyncing(true);
       
-      // Apply theme immediately
-      if (appSettings.theme === 'dark') {
-        document.documentElement.classList.add('dark');
-      } else if (appSettings.theme === 'light') {
-        document.documentElement.classList.remove('dark');
-      } else {
-        // System theme
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        if (prefersDark) {
-          document.documentElement.classList.add('dark');
-        } else {
-          document.documentElement.classList.remove('dark');
-        }
-      }
+      // Clear all local data
+      await db.clearAllData();
       
-      showMessage('Settings saved successfully!', 'success');
+      // Clear all Firebase data
+      await firebaseSync.wipeAllData();
+      
+      showMessage('All data wiped successfully! The page will reload.', 'success');
+      
+      // Reload the page after a short delay
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+      
     } catch (error) {
-      showMessage('Error saving settings', 'error');
+      console.error('Error wiping data:', error);
+      showMessage('Error wiping data. Please try again.', 'error');
     } finally {
       setLoading(false);
+      setSyncing(false);
     }
   };
 
   const handleSyncToFirebase = async () => {
     setSyncing(true);
     try {
-      await db.syncToFirebase();
-      setMessage({ type: 'success', text: 'Data synced to Firebase successfully!' });
+      await firebaseSync.performFullSync();
+      showMessage('Data synced to Firebase successfully!', 'success');
       await loadSyncStatus();
     } catch (error) {
       console.error('Sync to Firebase failed:', error);
-      setMessage({ type: 'error', text: 'Failed to sync to Firebase. Please try again.' });
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const handleSyncFromFirebase = async () => {
-    if (!confirm('This will replace all local data with Firebase data. Are you sure?')) {
-      return;
-    }
-    
-    setSyncing(true);
-    try {
-      await db.syncFromFirebase();
-      setMessage({ type: 'success', text: 'Data synced from Firebase successfully!' });
-      await loadSyncStatus();
-      // Refresh the page to show updated data
-      window.location.reload();
-    } catch (error) {
-      console.error('Sync from Firebase failed:', error);
-      setMessage({ type: 'error', text: 'Failed to sync from Firebase. Please try again.' });
+      showMessage('Failed to sync to Firebase. Please try again.', 'error');
     } finally {
       setSyncing(false);
     }
@@ -245,12 +231,12 @@ const Settings: React.FC = () => {
   const handleExportData = async () => {
     try {
       setLoading(true);
-      const data = await db.exportAllData();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const data = await db.exportData();
+      const blob = new Blob([data], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `arkive-backup-${format(new Date(), 'yyyy-MM-dd')}.json`;
+      a.download = `arkive-backup-${format(new Date(), 'yyyy-MM-dd-HH-mm-ss')}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -271,36 +257,12 @@ const Settings: React.FC = () => {
     try {
       setLoading(true);
       const text = await file.text();
-      const data = JSON.parse(text);
-      await db.importAllData(data);
-      showMessage('Data imported successfully!', 'success');
+      await db.importData(text);
+      showMessage('Data imported successfully! Please refresh the page.', 'success');
       loadUsers();
     } catch (error) {
       console.error('Import error:', error);
-      showMessage('Error importing data', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const clearAllData = async () => {
-    if (!confirm('Are you sure you want to clear all data? This action cannot be undone!')) {
-      return;
-    }
-
-    const confirmText = prompt('Type "DELETE" to confirm:');
-    if (confirmText !== 'DELETE') {
-      return;
-    }
-
-    try {
-      setLoading(true);
-      await db.clearAllData();
-      showMessage('All data cleared successfully!', 'success');
-      loadUsers();
-    } catch (error) {
-      console.error('Error clearing data:', error);
-      showMessage('Error clearing data', 'error');
+      showMessage('Error importing data. Please check the file format.', 'error');
     } finally {
       setLoading(false);
     }
@@ -308,10 +270,9 @@ const Settings: React.FC = () => {
 
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
-    { id: 'appearance', label: 'Appearance', icon: Monitor },
     { id: 'sync', label: 'Sync & Backup', icon: Database },
     { id: 'users', label: 'User Management', icon: Users, adminOnly: true },
-    { id: 'advanced', label: 'Advanced', icon: SettingsIcon },
+    { id: 'advanced', label: 'Advanced', icon: SettingsIcon, adminOnly: true },
   ];
 
   return (
@@ -334,6 +295,11 @@ const Settings: React.FC = () => {
           <span className={syncStatus.isOnline ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
             {syncStatus.isOnline ? 'Online' : 'Offline'}
           </span>
+          {syncStatus.queueLength > 0 && (
+            <span className="text-orange-600 dark:text-orange-400">
+              ({syncStatus.queueLength} pending)
+            </span>
+          )}
         </div>
       </div>
 
@@ -343,7 +309,7 @@ const Settings: React.FC = () => {
           message.type === 'success' 
             ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300'
             : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
-        }`}>
+        } animate-slideInRight`}>
           <div className="flex items-center">
             {message.type === 'success' ? <CheckCircle className="w-5 h-5 mr-2" /> : <AlertCircle className="w-5 h-5 mr-2" />}
             {message.text}
@@ -462,64 +428,6 @@ const Settings: React.FC = () => {
             </div>
           )}
 
-          {/* Appearance Tab */}
-          {activeTab === 'appearance' && (
-            <div className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Appearance Settings</h3>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Theme
-                  </label>
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { value: 'light', label: 'Light', icon: Sun },
-                      { value: 'dark', label: 'Dark', icon: Moon },
-                      { value: 'system', label: 'System', icon: Monitor }
-                    ].map(({ value, label, icon: Icon }) => (
-                      <button
-                        key={value}
-                        onClick={() => setAppSettings({ ...appSettings, theme: value as any })}
-                        className={`flex items-center justify-center gap-2 p-3 rounded-lg border transition-colors ${
-                          appSettings.theme === value
-                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                            : 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
-                        }`}
-                      >
-                        <Icon size={16} />
-                        <span className="text-sm font-medium">{label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Language
-                  </label>
-                  <select
-                    value={appSettings.language}
-                    onChange={(e) => setAppSettings({ ...appSettings, language: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  >
-                    <option value="en">English</option>
-                    <option value="ur">اردو (Urdu)</option>
-                  </select>
-                </div>
-
-                <button
-                  onClick={saveSettings}
-                  disabled={loading}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                >
-                  <Save size={16} />
-                  {loading ? 'Saving...' : 'Save Appearance Settings'}
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* Sync & Backup Tab */}
           {activeTab === 'sync' && (
             <div className="space-y-6">
@@ -588,20 +496,16 @@ const Settings: React.FC = () => {
                     ) : (
                       <Upload className="w-5 h-5" />
                     )}
-                    {syncing ? 'Syncing...' : 'Sync to Firebase'}
+                    {syncing ? 'Syncing...' : 'Force Sync Now'}
                   </button>
                   
                   <button
-                    onClick={handleSyncFromFirebase}
-                    disabled={syncing || !syncStatus.isOnline}
-                    className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={handleExportData}
+                    disabled={loading}
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
                   >
-                    {syncing ? (
-                      <RefreshCw className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <Download className="w-5 h-5" />
-                    )}
-                    {syncing ? 'Syncing...' : 'Sync from Firebase'}
+                    <Download className="w-5 h-5" />
+                    {loading ? 'Exporting...' : 'Export Backup'}
                   </button>
                 </div>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-3">
@@ -612,37 +516,26 @@ const Settings: React.FC = () => {
               {/* Backup & Restore */}
               <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                  Backup & Restore
+                  Import Data
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <button
-                    onClick={handleExportData}
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={handleImportData}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     disabled={loading}
-                    className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                  />
+                  <button
+                    disabled={loading}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                   >
-                    <Download className="w-5 h-5" />
-                    {loading ? 'Exporting...' : 'Export Data'}
+                    <Upload className="w-5 h-5" />
+                    {loading ? 'Importing...' : 'Import Data from Backup'}
                   </button>
-                  
-                  <div className="relative">
-                    <input
-                      type="file"
-                      accept=".json"
-                      onChange={handleImportData}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                      disabled={loading}
-                    />
-                    <button
-                      disabled={loading}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                    >
-                      <Upload className="w-5 h-5" />
-                      {loading ? 'Importing...' : 'Import Data'}
-                    </button>
-                  </div>
                 </div>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-3">
-                  Export your data for backup or import from a previous backup.
+                  Import data from a previously exported backup file.
                 </p>
               </div>
             </div>
@@ -653,15 +546,45 @@ const Settings: React.FC = () => {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white">User Management</h3>
-                <button
-                  onClick={() => setActiveTab('create-user')}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Users size={16} />
-                  Create User
-                </button>
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  {users.filter(u => u.role === 'admin').length}/2 admin accounts used
+                </div>
               </div>
 
+              {/* Create User Form */}
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <h4 className="font-medium text-gray-900 dark:text-white mb-4">Create New Admin Account</h4>
+                <form onSubmit={handleCreateUser} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <input
+                    type="text"
+                    value={newUserData.username}
+                    onChange={(e) => setNewUserData({ ...newUserData, username: e.target.value })}
+                    placeholder="Username"
+                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    required
+                    minLength={3}
+                  />
+                  <input
+                    type="password"
+                    value={newUserData.password}
+                    onChange={(e) => setNewUserData({ ...newUserData, password: e.target.value })}
+                    placeholder="Password"
+                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    required
+                    minLength={6}
+                  />
+                  <button
+                    type="submit"
+                    disabled={loading || users.filter(u => u.role === 'admin').length >= 2}
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Save size={16} />
+                    {loading ? 'Creating...' : 'Create Admin'}
+                  </button>
+                </form>
+              </div>
+
+              {/* Users Table */}
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50 dark:bg-gray-700">
@@ -676,6 +599,9 @@ const Settings: React.FC = () => {
                         Created
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Last Login
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
@@ -685,6 +611,9 @@ const Settings: React.FC = () => {
                       <tr key={u.id}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                           {u.username}
+                          {u.id === user?.id && (
+                            <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">(You)</span>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -698,11 +627,15 @@ const Settings: React.FC = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                           {format(new Date(u.createdAt), 'MMM dd, yyyy')}
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          {u.lastLogin ? format(new Date(u.lastLogin), 'MMM dd, yyyy HH:mm') : 'Never'}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           {u.id !== user?.id && (
                             <button
                               onClick={() => handleDeleteUser(u.id, u.username)}
-                              className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300"
+                              className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 transition-colors"
+                              title="Delete User"
                             >
                               <Trash2 size={16} />
                             </button>
@@ -716,171 +649,34 @@ const Settings: React.FC = () => {
             </div>
           )}
 
-          {/* Create User Form */}
-          {activeTab === 'create-user' && isAdmin && (
-            <div className="space-y-6">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setActiveTab('users')}
-                  className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
-                >
-                  ← Back to Users
-                </button>
-              </div>
-
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Create New User</h3>
-              
-              <form onSubmit={handleCreateUser} className="space-y-4 max-w-md">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Username
-                  </label>
-                  <input
-                    type="text"
-                    value={newUserData.username}
-                    onChange={(e) => setNewUserData({ ...newUserData, username: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    required
-                    minLength={3}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    value={newUserData.password}
-                    onChange={(e) => setNewUserData({ ...newUserData, password: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    required
-                    minLength={6}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Role
-                  </label>
-                  <select
-                    value={newUserData.role}
-                    onChange={(e) => setNewUserData({ ...newUserData, role: e.target.value as any })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  >
-                    <option value="employee">Employee</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                </div>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                >
-                  <Save size={16} />
-                  {loading ? 'Creating...' : 'Create User'}
-                </button>
-              </form>
-            </div>
-          )}
-
           {/* Advanced Tab */}
-          {activeTab === 'advanced' && (
+          {activeTab === 'advanced' && isAdmin && (
             <div className="space-y-6">
               <h3 className="text-lg font-medium text-gray-900 dark:text-white">Advanced Settings</h3>
               
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <label className="text-sm font-medium text-gray-900 dark:text-white">Notifications</label>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Enable desktop notifications</p>
-                  </div>
-                  <button
-                    onClick={() => setAppSettings({ ...appSettings, notifications: !appSettings.notifications })}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      appSettings.notifications ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        appSettings.notifications ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <label className="text-sm font-medium text-gray-900 dark:text-white">Auto Backup</label>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Automatically backup data daily</p>
-                  </div>
-                  <button
-                    onClick={() => setAppSettings({ ...appSettings, autoBackup: !appSettings.autoBackup })}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      appSettings.autoBackup ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        appSettings.autoBackup ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Session Timeout (minutes)
-                  </label>
-                  <input
-                    type="number"
-                    value={appSettings.sessionTimeout}
-                    onChange={(e) => setAppSettings({ ...appSettings, sessionTimeout: parseInt(e.target.value) })}
-                    min="5"
-                    max="480"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Max Login Attempts
-                  </label>
-                  <input
-                    type="number"
-                    value={appSettings.maxLoginAttempts}
-                    onChange={(e) => setAppSettings({ ...appSettings, maxLoginAttempts: parseInt(e.target.value) })}
-                    min="3"
-                    max="10"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-                </div>
-
-                {isAdmin && (
-                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-                    <h4 className="text-sm font-medium text-red-800 dark:text-red-200 mb-2">
+              {/* Danger Zone */}
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400 mt-1" />
+                  <div className="flex-1">
+                    <h4 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">
                       Danger Zone
                     </h4>
                     <p className="text-sm text-red-700 dark:text-red-300 mb-4">
-                      This action will permanently delete all application data.
+                      This action will permanently delete ALL application data from both local storage and Firebase. 
+                      This includes all clients, receipts, expenses, employees, documents, and user accounts. 
+                      This action CANNOT be undone.
                     </p>
                     <button
-                      onClick={clearAllData}
-                      disabled={loading}
+                      onClick={handleWipeAllData}
+                      disabled={loading || syncing}
                       className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
                     >
                       <Trash2 size={16} />
-                      {loading ? 'Clearing...' : 'Clear All Data'}
+                      {loading || syncing ? 'Processing...' : 'Wipe All Data'}
                     </button>
                   </div>
-                )}
-
-                <button
-                  onClick={saveSettings}
-                  disabled={loading}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                >
-                  <Save size={16} />
-                  {loading ? 'Saving...' : 'Save Advanced Settings'}
-                </button>
+                </div>
               </div>
             </div>
           )}

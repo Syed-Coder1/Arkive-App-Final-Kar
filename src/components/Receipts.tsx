@@ -10,13 +10,16 @@ import {
   Calendar,
   Filter,
   Receipt as ReceiptIcon,
-  X
+  X,
+  AlertCircle,
+  CheckCircle
 } from 'lucide-react';
 import { useReceipts, useClients } from '../hooks/useDatabase';
 import { useAuth } from '../contexts/AuthContext';
 import { format } from 'date-fns';
 import { exportService } from '../services/export';
 import { firebaseSync } from '../services/firebaseSync';
+import { db } from '../services/database';
 
 interface ReceiptsProps {
   showForm?: boolean;
@@ -24,23 +27,19 @@ interface ReceiptsProps {
 }
 
 export default function Receipts({ showForm: externalShowForm, onCloseForm }: ReceiptsProps) {
-  // --- Hooks you had (kept intact) ---
   const { receipts: localReceipts, createReceipt, loading } = useReceipts();
   const { clients } = useClients();
   const { user } = useAuth();
 
-  // local state that will be the single source of truth for the UI
-  const [receipts, setReceipts] = useState<any[]>(Array.isArray(localReceipts) ? localReceipts : []);
-  const receiptsRef = useRef(receipts);
-  receiptsRef.current = receipts; // keep ref up-to-date for callbacks
-
-  // UI state (kept from your original)
+  // Local state for UI
+  const [receipts, setReceipts] = useState<any[]>([]);
   const [showForm, setShowForm] = useState<boolean>(externalShowForm || false);
   const [editingReceipt, setEditingReceipt] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPaymentMethod, setFilterPaymentMethod] = useState('');
   const [showPreview, setShowPreview] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const [formData, setFormData] = useState({
     clientName: '',
@@ -51,12 +50,10 @@ export default function Receipts({ showForm: externalShowForm, onCloseForm }: Re
     date: format(new Date(), 'yyyy-MM-dd'),
   });
 
-  // -----------------------
-  // Helper: normalize an item (date -> Date, amount -> number)
-  // -----------------------
+  // Normalize receipt data
   const normalize = (item: any) => {
     if (!item) return item;
-    // If item already has id property we keep it
+    
     const safeDate = (() => {
       if (!item.date) return new Date();
       if (item.date instanceof Date) return item.date;
@@ -77,29 +74,26 @@ export default function Receipts({ showForm: externalShowForm, onCloseForm }: Re
     return { ...item, date: safeDate, amount: safeAmount };
   };
 
-  // -----------------------
-  // Merge remote data into current receipts list without duplicates
-  // - Keeps existing local items and updates by id if remote has newer values
-  // -----------------------
+  // Merge remote data safely
   const mergeRemoteReceipts = (remoteItems: any[]) => {
     if (!Array.isArray(remoteItems)) return;
 
-    // normalize all incoming
     const normalizedRemote = remoteItems.map(normalize);
-
-    // Build map of current receipts (by id) and overwrite / add
     const map = new Map<string, any>();
-    receiptsRef.current.forEach((r) => {
+    
+    // Add current receipts to map
+    receipts.forEach((r) => {
       if (r && r.id !== undefined) map.set(String(r.id), normalize(r));
     });
 
+    // Merge remote data (remote takes precedence)
     normalizedRemote.forEach((r) => {
       if (r && r.id !== undefined) {
-        map.set(String(r.id), r); // remote overwrites or adds
+        map.set(String(r.id), r);
       }
     });
 
-    // produce array sorted by date desc (you can adjust)
+    // Sort by date descending
     const merged = Array.from(map.values()).sort((a, b) => {
       const ta = a.date instanceof Date ? a.date.getTime() : new Date(a.date).getTime();
       const tb = b.date instanceof Date ? b.date.getTime() : new Date(b.date).getTime();
@@ -109,117 +103,75 @@ export default function Receipts({ showForm: externalShowForm, onCloseForm }: Re
     setReceipts(merged);
   };
 
-  // -----------------------
-  // Sync localReceipts -> UI when local DB changes (hook provided)
-  // This ensures any local-created receipts appear immediately.
-  // -----------------------
+  // Sync local receipts to UI
   useEffect(() => {
     if (!Array.isArray(localReceipts)) {
       setReceipts([]);
       return;
     }
-    // Normalize local receipts and merge in (but keep any remote overrides)
+    
     const normalizedLocal = localReceipts.map(normalize);
-
-    // If we currently have remote items, prefer to merge to avoid duplicates.
-    // Build map from current receipts then overlay local items (local should not duplicate remote if ids match).
     const map = new Map<string, any>();
-    receiptsRef.current.forEach((r) => {
+    
+    // Keep existing receipts (might have Firebase data)
+    receipts.forEach((r) => {
       if (r && r.id !== undefined) map.set(String(r.id), r);
     });
 
+    // Add local receipts (but don't overwrite Firebase data)
     normalizedLocal.forEach((lr) => {
-      if (lr && lr.id !== undefined) {
-        // if remote had it, we keep remote (it likely contains syncedBy metadata).
-        // But we still ensure the object exists
-        if (!map.has(String(lr.id))) {
-          map.set(String(lr.id), lr);
-        }
+      if (lr && lr.id !== undefined && !map.has(String(lr.id))) {
+        map.set(String(lr.id), lr);
       }
     });
 
-    // fallback: if map is empty, use normalizedLocal directly
-    const merged = map.size > 0 ? Array.from(map.values()) : normalizedLocal;
-    // sort by date desc
-    merged.sort((a, b) => {
+    const merged = Array.from(map.values()).sort((a, b) => {
       const ta = a.date instanceof Date ? a.date.getTime() : new Date(a.date).getTime();
       const tb = b.date instanceof Date ? b.date.getTime() : new Date(b.date).getTime();
       return tb - ta;
     });
 
     setReceipts(merged);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localReceipts]);
 
-  // -----------------------
-  // Realtime Firebase listener (start on mount, stop on unmount)
-  // Uses the firebaseSync functions you have: startRealtimeReceiptsListener / removeRealtimeListener
-  // Ensures only one listener exists, merges incoming data safely to avoid duplicates.
-  // -----------------------
+  // Setup Firebase realtime listener
   useEffect(() => {
-    // If no user, we cannot listen
-    if (!user || !user.id && !user.uid) {
-      // If your Auth's user prop uses 'id' or 'uid' adjust accordingly.
-      // Bail out - no listener without authenticated user
-      return;
-    }
-
-    // Determine user id key (flexible to either 'uid' or 'id')
-    const userId = (user as any).uid || (user as any).id || '';
+    if (!user?.id) return;
 
     let mounted = true;
 
     try {
-      firebaseSync.startRealtimeReceiptsListener(userId, (remoteData: any[]) => {
+      firebaseSync.setupRealtimeListener('receipts', (remoteData: any[]) => {
         if (!mounted) return;
-        // remoteData should be array; merge into state
         try {
-          console.log('Realtime receipts from Firebase:', remoteData);
+          console.log('📡 Realtime receipts from Firebase:', remoteData.length);
           mergeRemoteReceipts(remoteData);
-        } catch (inner) {
-          console.error('Error processing realtime receipts:', inner);
+        } catch (error) {
+          console.error('Error processing realtime receipts:', error);
         }
       });
-    } catch (err) {
-      console.error('Failed to start realtime receipts listener:', err);
+    } catch (error) {
+      console.error('Failed to start realtime receipts listener:', error);
     }
 
     return () => {
       mounted = false;
-      try {
-        // your firebaseSync exports removeRealtimeListener()
-        if (typeof firebaseSync.removeRealtimeListener === 'function') {
-          firebaseSync.removeRealtimeListener();
-        } else {
-          // fallback: try the named exported function if present separately
-          try {
-            // @ts-ignore - some codebases export named removeRealtimeListener as well
-            if (typeof (firebaseSync as any).removeRealtimeListener === 'function') {
-              (firebaseSync as any).removeRealtimeListener();
-            }
-          } catch (e) {
-            console.warn('removeRealtimeListener not available on firebaseSync:', e);
-          }
-        }
-      } catch (cleanupErr) {
-        console.error('Error removing receipts listener:', cleanupErr);
-      }
+      firebaseSync.removeRealtimeListener('receipts');
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, user?.uid]);
+  }, [user?.id]);
 
-  // -----------------------
-  // When parent controls showForm
-  // -----------------------
+  // Handle external form control
   useEffect(() => {
     if (externalShowForm !== undefined) {
       setShowForm(externalShowForm);
     }
   }, [externalShowForm]);
 
-  // -----------------------
-  // Form helpers (kept intact)
-  // -----------------------
+  const showMessage = (text: string, type: 'success' | 'error') => {
+    setMessage({ text, type });
+    setTimeout(() => setMessage(null), 3000);
+  };
+
   const resetForm = () => {
     setFormData({
       clientName: '',
@@ -236,12 +188,14 @@ export default function Receipts({ showForm: externalShowForm, onCloseForm }: Re
     e.preventDefault();
 
     if (!/^\d{13}$/.test(formData.clientCnic)) {
-      alert('CNIC must be exactly 13 digits');
+      showMessage('CNIC must be exactly 13 digits', 'error');
       return;
     }
 
     try {
-      // build the receipt object to store locally first
+      // Auto-create client if doesn't exist
+      await db.autoCreateClientFromReceipt(formData.clientName, formData.clientCnic);
+
       const newReceipt = {
         clientName: formData.clientName,
         clientCnic: formData.clientCnic,
@@ -249,41 +203,40 @@ export default function Receipts({ showForm: externalShowForm, onCloseForm }: Re
         natureOfWork: formData.natureOfWork,
         paymentMethod: formData.paymentMethod,
         date: new Date(formData.date),
-        createdBy: (user as any)?.id || (user as any)?.uid || 'unknown',
+        createdBy: user!.id,
       };
 
-      // save locally using your hook
-      const saved = await createReceipt(newReceipt);
-
-      // queue for firebase sync (the firebaseSync.addToSyncQueue expects that shape)
-      try {
-        await firebaseSync.addToSyncQueue({
-          type: 'create',
-          store: 'receipts',
-          data: saved,
+      if (editingReceipt) {
+        // Update existing receipt
+        const updatedReceipt = { ...editingReceipt, ...newReceipt };
+        await db.updateReceipt(updatedReceipt);
+        
+        // Update UI immediately
+        setReceipts(prev => prev.map(r => r.id === editingReceipt.id ? normalize(updatedReceipt) : r));
+        showMessage('Receipt updated successfully!', 'success');
+      } else {
+        // Create new receipt
+        const saved = await createReceipt(newReceipt);
+        
+        // Update UI immediately
+        setReceipts(prev => {
+          const map = new Map(prev.map((r) => [String(r.id), r]));
+          map.set(String(saved.id), normalize(saved));
+          return Array.from(map.values()).sort((a, b) => {
+            const ta = a.date instanceof Date ? a.date.getTime() : new Date(a.date).getTime();
+            const tb = b.date instanceof Date ? b.date.getTime() : new Date(b.date).getTime();
+            return tb - ta;
+          });
         });
-      } catch (syncErr) {
-        console.warn('Failed to queue receipt for Firebase sync:', syncErr);
-        // don't block UI — sync queue will retry
+        showMessage('Receipt created successfully!', 'success');
       }
-
-      // update UI state immediately (local saved object has id)
-      setReceipts(prev => {
-        const map = new Map(prev.map((r) => [String(r.id), r]));
-        map.set(String(saved.id), normalize(saved));
-        return Array.from(map.values()).sort((a, b) => {
-          const ta = a.date instanceof Date ? a.date.getTime() : new Date(a.date).getTime();
-          const tb = b.date instanceof Date ? b.date.getTime() : new Date(b.date).getTime();
-          return tb - ta;
-        });
-      });
 
       resetForm();
       setShowForm(false);
       if (onCloseForm) onCloseForm();
     } catch (error) {
-      console.error('Error creating receipt:', error);
-      alert('Error creating receipt. Please try again.');
+      console.error('Error saving receipt:', error);
+      showMessage('Error saving receipt. Please try again.', 'error');
     }
   };
 
@@ -300,6 +253,29 @@ export default function Receipts({ showForm: externalShowForm, onCloseForm }: Re
     setShowForm(true);
   };
 
+  const handleDelete = async (receiptId: string, clientName: string) => {
+    if (confirm(`Are you sure you want to delete the receipt for ${clientName}? This action cannot be undone.`)) {
+      try {
+        await db.deleteReceipt(receiptId);
+        
+        // Update UI immediately
+        setReceipts(prev => prev.filter(r => r.id !== receiptId));
+        showMessage('Receipt deleted successfully!', 'success');
+        
+        // Log activity
+        await db.createActivity({
+          userId: user!.id,
+          action: 'delete_receipt',
+          details: `Deleted receipt for ${clientName} (ID: ${receiptId})`,
+          timestamp: new Date(),
+        });
+      } catch (error) {
+        console.error('Error deleting receipt:', error);
+        showMessage('Error deleting receipt. Please try again.', 'error');
+      }
+    }
+  };
+
   const handlePreview = (receipt: any) => {
     setSelectedReceipt(receipt);
     setShowPreview(true);
@@ -308,13 +284,14 @@ export default function Receipts({ showForm: externalShowForm, onCloseForm }: Re
   const handleExport = async () => {
     try {
       await exportService.exportReceiptsToExcel(receipts, clients);
+      showMessage('Receipts exported successfully!', 'success');
     } catch (error) {
       console.error('Export error:', error);
-      alert('Error exporting receipts');
+      showMessage('Error exporting receipts', 'error');
     }
   };
 
-  // filtering and totals (unchanged)
+  // Filter receipts
   const filteredReceipts = receipts.filter(receipt => {
     const client = clients.find((c: any) => c.cnic === receipt.clientCnic);
     const matchesSearch = !searchTerm ||
@@ -329,7 +306,7 @@ export default function Receipts({ showForm: externalShowForm, onCloseForm }: Re
 
   const totalRevenue = receipts.reduce((sum, receipt) => sum + (receipt.amount || 0), 0);
 
-  // safe format wrapper for UI (avoids Invalid time)
+  // Safe format wrapper
   const safeFormat = (d: any, fmt = 'MMM dd, yyyy') => {
     try {
       const date = d instanceof Date ? d : new Date(d);
@@ -350,28 +327,42 @@ export default function Receipts({ showForm: externalShowForm, onCloseForm }: Re
 
   return (
     <div className="space-y-6 animate-fadeIn">
+      {/* Message */}
+      {message && (
+        <div className={`p-4 rounded-lg border ${
+          message.type === 'success' 
+            ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300'
+            : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
+        } animate-slideInRight`}>
+          <div className="flex items-center">
+            {message.type === 'success' ? <CheckCircle className="w-5 h-5 mr-2" /> : <AlertCircle className="w-5 h-5 mr-2" />}
+            {message.text}
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <ReceiptIcon className="w-7 h-7 text-blue-600" />
-            Receipts
+            Receipts Management
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Total Revenue: Rs. {totalRevenue.toLocaleString()}
+            Total Revenue: Rs. {totalRevenue.toLocaleString()} • {receipts.length} receipts
           </p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-300 hover:scale-105"
           >
             <Download size={20} />
             Export
           </button>
           <button
             onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300 hover:scale-105"
           >
             <Plus size={20} />
             New Receipt
@@ -381,7 +372,7 @@ export default function Receipts({ showForm: externalShowForm, onCloseForm }: Re
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 hover-lift">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Total Receipts</p>
@@ -391,7 +382,7 @@ export default function Receipts({ showForm: externalShowForm, onCloseForm }: Re
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 hover-lift">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">This Month</p>
@@ -403,7 +394,7 @@ export default function Receipts({ showForm: externalShowForm, onCloseForm }: Re
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 hover-lift">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Avg Amount</p>
@@ -415,7 +406,7 @@ export default function Receipts({ showForm: externalShowForm, onCloseForm }: Re
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 hover-lift">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Active Clients</p>
@@ -438,14 +429,14 @@ export default function Receipts({ showForm: externalShowForm, onCloseForm }: Re
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search by client name or CNIC..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-all duration-300"
             />
           </div>
 
           <select
             value={filterPaymentMethod}
             onChange={(e) => setFilterPaymentMethod(e.target.value)}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-all duration-300"
           >
             <option value="">All Payment Methods</option>
             <option value="cash">Cash</option>
@@ -490,7 +481,7 @@ export default function Receipts({ showForm: externalShowForm, onCloseForm }: Re
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {filteredReceipts.map((receipt) => (
-                <tr key={receipt.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                <tr key={receipt.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200">
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                     {safeFormat(receipt.date, 'MMM dd, yyyy')}
                   </td>
@@ -512,17 +503,24 @@ export default function Receipts({ showForm: externalShowForm, onCloseForm }: Re
                     <div className="flex space-x-2">
                       <button
                         onClick={() => handlePreview(receipt)}
-                        className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300"
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 transition-colors duration-200"
                         title="Preview Receipt"
                       >
                         <Eye size={16} />
                       </button>
                       <button
                         onClick={() => handleEdit(receipt)}
-                        className="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300"
+                        className="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 transition-colors duration-200"
                         title="Edit Receipt"
                       >
                         <Edit size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(receipt.id, receipt.clientName)}
+                        className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 transition-colors duration-200"
+                        title="Delete Receipt"
+                      >
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </td>
@@ -544,7 +542,7 @@ export default function Receipts({ showForm: externalShowForm, onCloseForm }: Re
             </p>
             <button
               onClick={() => setShowForm(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300"
             >
               <Plus size={20} />
               Create Receipt
@@ -556,7 +554,7 @@ export default function Receipts({ showForm: externalShowForm, onCloseForm }: Re
       {/* Receipt Form Modal */}
       {showForm && (
         <div className="form-modal">
-          <div className="form-container">
+          <div className="form-container animate-slideInRight">
             <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
               <ReceiptIcon className="w-5 h-5" />
               {editingReceipt ? 'Edit Receipt' : 'New Receipt'}
@@ -573,7 +571,7 @@ export default function Receipts({ showForm: externalShowForm, onCloseForm }: Re
                     value={formData.clientName}
                     onChange={(e) => setFormData({ ...formData, clientName: e.target.value })}
                     placeholder="Enter client name"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-all duration-300"
                     required
                   />
                 </div>
@@ -590,12 +588,12 @@ export default function Receipts({ showForm: externalShowForm, onCloseForm }: Re
                       setFormData({ ...formData, clientCnic: value });
                     }}
                     placeholder="Enter 13-digit CNIC"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-all duration-300"
                     maxLength={13}
                     required
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Must be exactly 13 digits
+                    Client will be auto-created if doesn't exist
                   </p>
                 </div>
 
@@ -614,7 +612,7 @@ export default function Receipts({ showForm: externalShowForm, onCloseForm }: Re
                       });
                     }}
                     placeholder="Enter amount"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-all duration-300"
                     required
                   />
                 </div>
@@ -628,7 +626,7 @@ export default function Receipts({ showForm: externalShowForm, onCloseForm }: Re
                     onChange={(e) => setFormData({ ...formData, natureOfWork: e.target.value })}
                     placeholder="Describe the nature of work"
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-all duration-300"
                   />
                 </div>
 
@@ -639,7 +637,7 @@ export default function Receipts({ showForm: externalShowForm, onCloseForm }: Re
                   <select
                     value={formData.paymentMethod}
                     onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value as any })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-all duration-300"
                     required
                   >
                     <option value="cash">Cash</option>
@@ -658,7 +656,7 @@ export default function Receipts({ showForm: externalShowForm, onCloseForm }: Re
                     type="date"
                     value={formData.date}
                     onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-all duration-300"
                     required
                   />
                 </div>
@@ -675,13 +673,13 @@ export default function Receipts({ showForm: externalShowForm, onCloseForm }: Re
                     onCloseForm();
                   }
                 }}
-                className="flex-1 px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
+                className="flex-1 px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-all duration-300"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSubmit}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300"
               >
                 {editingReceipt ? 'Update Receipt' : 'Create Receipt'}
               </button>
@@ -692,13 +690,16 @@ export default function Receipts({ showForm: externalShowForm, onCloseForm }: Re
 
       {/* Preview Modal */}
       {showPreview && selectedReceipt && (
-        <div className="fixed inset-0 flex items-center justify-center">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 w-full max-w-md animate-slideInRight">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Receipt Preview</h2>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <Eye className="w-5 h-5" />
+                Receipt Preview
+              </h2>
               <button
                 onClick={() => setShowPreview(false)}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors duration-200"
               >
                 <X size={24} />
               </button>
@@ -743,6 +744,34 @@ export default function Receipts({ showForm: externalShowForm, onCloseForm }: Re
                   </p>
                 </div>
               )}
+              <div className="flex justify-between">
+                <span className="text-gray-600 dark:text-gray-400">Created:</span>
+                <span className="font-medium text-gray-900 dark:text-white">
+                  {safeFormat(selectedReceipt.createdAt, 'MMM dd, yyyy HH:mm')}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={() => {
+                  setShowPreview(false);
+                  handleEdit(selectedReceipt);
+                }}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300"
+              >
+                <Edit size={16} />
+                Edit
+              </button>
+              <button
+                onClick={() => {
+                  setShowPreview(false);
+                  handleDelete(selectedReceipt.id, selectedReceipt.clientName);
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-300"
+              >
+                <Trash2 size={16} />
+              </button>
             </div>
           </div>
         </div>

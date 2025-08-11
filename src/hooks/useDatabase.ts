@@ -25,11 +25,11 @@ export function useClients() {
     
     // Setup realtime listener
     firebaseSync.setupRealtimeListener('clients', (remoteData: Client[]) => {
-      if (remoteData.length > 0) {
+      if (remoteData.length >= 0) { // Allow empty arrays
         setClients(prevClients => {
           const clientMap = new Map(prevClients.map(c => [c.id, c]));
           
-          // Merge remote data
+          // Merge remote data (Firebase takes precedence)
           remoteData.forEach(remoteClient => {
             clientMap.set(remoteClient.id, remoteClient);
           });
@@ -38,6 +38,7 @@ export function useClients() {
             new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
           );
         });
+        console.log(`✅ Clients updated from Firebase: ${remoteData.length} items`);
       }
     });
 
@@ -90,11 +91,11 @@ export function useReceipts() {
     
     // Setup realtime listener
     firebaseSync.setupRealtimeListener('receipts', (remoteData: Receipt[]) => {
-      if (remoteData.length > 0) {
+      if (remoteData.length >= 0) { // Allow empty arrays
         setReceipts(prevReceipts => {
           const receiptMap = new Map(prevReceipts.map(r => [r.id, r]));
           
-          // Merge remote data
+          // Merge remote data (Firebase takes precedence)
           remoteData.forEach(remoteReceipt => {
             receiptMap.set(remoteReceipt.id, remoteReceipt);
           });
@@ -103,6 +104,7 @@ export function useReceipts() {
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
         });
+        console.log(`✅ Receipts updated from Firebase: ${remoteData.length} items`);
       }
     });
 
@@ -131,7 +133,17 @@ export function useReceipts() {
     }
   };
 
-  return { receipts, loading, createReceipt, getReceiptsByClient, refetch: fetchReceipts };
+  const deleteReceipt = async (id: string) => {
+    try {
+      await db.deleteReceipt(id);
+      setReceipts(prev => prev.filter(r => r.id !== id));
+    } catch (error) {
+      console.error('Error deleting receipt:', error);
+      throw error;
+    }
+  };
+
+  return { receipts, loading, createReceipt, getReceiptsByClient, deleteReceipt, refetch: fetchReceipts };
 }
 
 export function useExpenses() {
@@ -154,11 +166,11 @@ export function useExpenses() {
     
     // Setup realtime listener
     firebaseSync.setupRealtimeListener('expenses', (remoteData: Expense[]) => {
-      if (remoteData.length > 0) {
+      if (remoteData.length >= 0) { // Allow empty arrays
         setExpenses(prevExpenses => {
           const expenseMap = new Map(prevExpenses.map(e => [e.id, e]));
           
-          // Merge remote data
+          // Merge remote data (Firebase takes precedence)
           remoteData.forEach(remoteExpense => {
             expenseMap.set(remoteExpense.id, remoteExpense);
           });
@@ -167,6 +179,7 @@ export function useExpenses() {
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
         });
+        console.log(`✅ Expenses updated from Firebase: ${remoteData.length} items`);
       }
     });
 
@@ -231,11 +244,11 @@ export function useNotifications() {
     
     // Setup realtime listener
     firebaseSync.setupRealtimeListener('notifications', (remoteData: Notification[]) => {
-      if (remoteData.length > 0) {
+      if (remoteData.length >= 0) { // Allow empty arrays
         setNotifications(prevNotifications => {
           const notificationMap = new Map(prevNotifications.map(n => [n.id, n]));
           
-          // Merge remote data
+          // Merge remote data (Firebase takes precedence)
           remoteData.forEach(remoteNotification => {
             notificationMap.set(remoteNotification.id, remoteNotification);
           });
@@ -244,6 +257,7 @@ export function useNotifications() {
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
         });
+        console.log(`✅ Notifications updated from Firebase: ${remoteData.length} items`);
       }
     });
 
@@ -295,11 +309,11 @@ export function useDocuments() {
     
     // Setup realtime listener
     firebaseSync.setupRealtimeListener('documents', (remoteData: Document[]) => {
-      if (remoteData.length > 0) {
+      if (remoteData.length >= 0) { // Allow empty arrays
         setDocuments(prevDocuments => {
           const documentMap = new Map(prevDocuments.map(d => [d.id, d]));
           
-          // Merge remote data
+          // Merge remote data (Firebase takes precedence)
           remoteData.forEach(remoteDocument => {
             documentMap.set(remoteDocument.id, remoteDocument);
           });
@@ -308,6 +322,7 @@ export function useDocuments() {
             new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
           );
         });
+        console.log(`✅ Documents updated from Firebase: ${remoteData.length} items`);
       }
     });
 
@@ -388,6 +403,7 @@ export function useDatabase() {
     receiptsLoading: receipts.loading,
     createReceipt: receipts.createReceipt,
     getReceiptsByClient: receipts.getReceiptsByClient,
+    deleteReceipt: receipts.deleteReceipt,
     refetchReceipts: receipts.refetch,
 
     // Expenses

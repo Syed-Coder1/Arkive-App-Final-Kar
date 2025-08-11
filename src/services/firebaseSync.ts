@@ -1,4 +1,4 @@
-import { ref, set, get, remove, onValue, off, push } from 'firebase/database';
+import { ref, set, get, remove, onValue, off, push, update } from 'firebase/database';
 import { rtdb } from '../firebase';
 
 export interface SyncOperation {
@@ -8,6 +8,7 @@ export interface SyncOperation {
   data: any;
   timestamp: Date;
   deviceId: string;
+  retryCount?: number;
 }
 
 class FirebaseSyncService {
@@ -18,34 +19,49 @@ class FirebaseSyncService {
   private retryAttempts = 0;
   private maxRetries = 3;
   private syncInProgress = false;
+  private connectionCheckInterval: NodeJS.Timeout | null = null;
 
   constructor() {
     this.deviceId = this.getDeviceId();
+    this.initializeConnectionMonitoring();
+    this.loadSyncQueue();
+    
+    // Process sync queue every 5 seconds when online
+    setInterval(() => {
+      if (this.isOnline && this.syncQueue.length > 0 && !this.syncInProgress) {
+        this.processSyncQueue();
+      }
+    }, 5000);
+  }
 
+  private initializeConnectionMonitoring(): void {
     window.addEventListener('online', () => {
       this.isOnline = true;
       this.retryAttempts = 0;
+      console.log('🌐 Connection restored - processing sync queue');
       this.processSyncQueue();
     });
 
     window.addEventListener('offline', () => {
       this.isOnline = false;
+      console.log('📴 Connection lost - queuing operations');
     });
 
-    this.loadSyncQueue();
-    
-    // Process sync queue every 10 seconds when online
-    setInterval(() => {
-      if (this.isOnline && this.syncQueue.length > 0 && !this.syncInProgress) {
-        this.processSyncQueue();
+    // Check Firebase connection every 30 seconds
+    this.connectionCheckInterval = setInterval(async () => {
+      if (this.isOnline) {
+        const connected = await this.checkConnection();
+        if (!connected && this.isOnline) {
+          console.warn('🔥 Firebase connection lost despite being online');
+        }
       }
-    }, 10000);
+    }, 30000);
   }
 
   private getDeviceId(): string {
     let deviceId = localStorage.getItem('arkive-device-id');
     if (!deviceId) {
-      deviceId = crypto.randomUUID();
+      deviceId = `device_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       localStorage.setItem('arkive-device-id', deviceId);
     }
     return deviceId;
@@ -59,14 +75,20 @@ class FirebaseSyncService {
           ...op,
           timestamp: new Date(op.timestamp)
         }));
-      } catch {
+        console.log(`📦 Loaded ${this.syncQueue.length} operations from sync queue`);
+      } catch (error) {
+        console.error('Error loading sync queue:', error);
         this.syncQueue = [];
       }
     }
   }
 
   private saveSyncQueue(): void {
-    localStorage.setItem('arkive-sync-queue', JSON.stringify(this.syncQueue));
+    try {
+      localStorage.setItem('arkive-sync-queue', JSON.stringify(this.syncQueue));
+    } catch (error) {
+      console.error('Error saving sync queue:', error);
+    }
   }
 
   async checkConnection(): Promise<boolean> {
@@ -75,10 +97,33 @@ class FirebaseSyncService {
     try {
       const testRef = ref(rtdb, '.info/connected');
       const snapshot = await get(testRef);
-      return snapshot.exists();
+      return snapshot.exists() && snapshot.val() === true;
     } catch (error) {
       console.warn('Firebase connection check failed:', error);
       return false;
+    }
+  }
+
+  async wipeAllData(): Promise<void> {
+    try {
+      console.log('🗑️ Wiping all Firebase data...');
+      
+      // Remove all data from Firebase
+      const rootRef = ref(rtdb, '/');
+      await remove(rootRef);
+      
+      // Clear local sync queue
+      this.syncQueue = [];
+      this.saveSyncQueue();
+      
+      // Clear local storage
+      localStorage.removeItem('arkive-sync-queue');
+      localStorage.removeItem('lastSyncTime');
+      
+      console.log('✅ All data wiped successfully');
+    } catch (error) {
+      console.error('❌ Error wiping data:', error);
+      throw error;
     }
   }
 
@@ -87,10 +132,24 @@ class FirebaseSyncService {
       ...operation,
       id: crypto.randomUUID(),
       timestamp: new Date(),
-      deviceId: this.deviceId
+      deviceId: this.deviceId,
+      retryCount: 0
     };
 
-    this.syncQueue.push(syncOp);
+    // Check for duplicates to prevent duplicate entries
+    const existingIndex = this.syncQueue.findIndex(op => 
+      op.store === syncOp.store && 
+      op.data.id === syncOp.data.id && 
+      op.type === syncOp.type
+    );
+
+    if (existingIndex !== -1) {
+      // Update existing operation instead of adding duplicate
+      this.syncQueue[existingIndex] = syncOp;
+    } else {
+      this.syncQueue.push(syncOp);
+    }
+
     this.saveSyncQueue();
     
     if (this.isOnline && !this.syncInProgress) {
@@ -99,27 +158,43 @@ class FirebaseSyncService {
   }
 
   private async processSyncQueue() {
-    if (!this.isOnline || this.syncQueue.length === 0 || this.retryAttempts >= this.maxRetries || this.syncInProgress) {
+    if (!this.isOnline || this.syncQueue.length === 0 || this.syncInProgress) {
       return;
     }
 
     this.syncInProgress = true;
     const queue = [...this.syncQueue];
-    this.syncQueue = [];
+    const successfulOps: string[] = [];
+
+    console.log(`🔄 Processing ${queue.length} sync operations...`);
 
     for (const operation of queue) {
       try {
         await this.syncToFirebase(operation);
-        console.log(`✅ Synced ${operation.type} operation for ${operation.store}`);
+        successfulOps.push(operation.id);
+        console.log(`✅ Synced ${operation.type} operation for ${operation.store}/${operation.data.id}`);
       } catch (error) {
         console.error(`❌ Failed to sync ${operation.type} operation for ${operation.store}:`, error);
-        this.retryAttempts++;
-        this.syncQueue.push(operation);
+        
+        // Increment retry count
+        operation.retryCount = (operation.retryCount || 0) + 1;
+        
+        // Remove operation if max retries exceeded
+        if (operation.retryCount >= this.maxRetries) {
+          console.warn(`🚫 Max retries exceeded for operation ${operation.id}, removing from queue`);
+          successfulOps.push(operation.id);
+        }
       }
     }
 
+    // Remove successful operations from queue
+    this.syncQueue = this.syncQueue.filter(op => !successfulOps.includes(op.id));
     this.saveSyncQueue();
     this.syncInProgress = false;
+
+    if (successfulOps.length > 0) {
+      localStorage.setItem('lastSyncTime', new Date().toISOString());
+    }
   }
 
   private async syncToFirebase(operation: SyncOperation) {
@@ -129,24 +204,49 @@ class FirebaseSyncService {
     const dataRef = ref(rtdb, path);
 
     if (operation.type === 'create' || operation.type === 'update') {
-      const syncData = {
-        ...operation.data,
-        lastModified: operation.timestamp.toISOString(),
-        syncedBy: this.deviceId,
-        // Convert dates to ISO strings for Firebase
-        ...(operation.data.date && { date: operation.data.date instanceof Date ? operation.data.date.toISOString() : operation.data.date }),
-        ...(operation.data.createdAt && { createdAt: operation.data.createdAt instanceof Date ? operation.data.createdAt.toISOString() : operation.data.createdAt }),
-        ...(operation.data.updatedAt && { updatedAt: operation.data.updatedAt instanceof Date ? operation.data.updatedAt.toISOString() : operation.data.updatedAt }),
-        ...(operation.data.lastLogin && { lastLogin: operation.data.lastLogin instanceof Date ? operation.data.lastLogin.toISOString() : operation.data.lastLogin }),
-        ...(operation.data.uploadedAt && { uploadedAt: operation.data.uploadedAt instanceof Date ? operation.data.uploadedAt.toISOString() : operation.data.uploadedAt }),
-        ...(operation.data.joinDate && { joinDate: operation.data.joinDate instanceof Date ? operation.data.joinDate.toISOString() : operation.data.joinDate }),
-        ...(operation.data.timestamp && { timestamp: operation.data.timestamp instanceof Date ? operation.data.timestamp.toISOString() : operation.data.timestamp }),
-      };
+      // Prevent duplicates by checking if record exists for creates
+      if (operation.type === 'create') {
+        const existing = await get(dataRef);
+        if (existing.exists()) {
+          console.log(`⚠️ Record already exists, converting to update: ${path}`);
+          operation.type = 'update';
+        }
+      }
+
+      const syncData = this.serializeForFirebase(operation.data);
+      syncData.lastModified = operation.timestamp.toISOString();
+      syncData.syncedBy = this.deviceId;
 
       await set(dataRef, syncData);
     } else if (operation.type === 'delete') {
       await remove(dataRef);
     }
+  }
+
+  private serializeForFirebase(data: any): any {
+    const serialized = { ...data };
+    
+    // Convert Date objects to ISO strings
+    const dateFields = [
+      'date', 'createdAt', 'updatedAt', 'lastLogin', 'uploadedAt', 
+      'joinDate', 'timestamp', 'lastModified', 'lastAccessed', 'checkIn', 'checkOut'
+    ];
+    
+    dateFields.forEach(field => {
+      if (serialized[field] instanceof Date) {
+        serialized[field] = serialized[field].toISOString();
+      }
+    });
+
+    // Handle nested date objects in accessLog
+    if (serialized.accessLog && Array.isArray(serialized.accessLog)) {
+      serialized.accessLog = serialized.accessLog.map((log: any) => ({
+        ...log,
+        timestamp: log.timestamp instanceof Date ? log.timestamp.toISOString() : log.timestamp
+      }));
+    }
+
+    return serialized;
   }
 
   async getStoreFromFirebase(storeName: string): Promise<any[]> {
@@ -159,23 +259,29 @@ class FirebaseSyncService {
       
       if (!data) return [];
       
-      return Object.values(data).map((item: any) => this.deserializeItem(item));
+      return Object.values(data).map((item: any) => this.deserializeFromFirebase(item));
     } catch (error) {
       console.error(`Error fetching ${storeName} from Firebase:`, error);
       throw error;
     }
   }
 
-  private deserializeItem(item: any): any {
+  private deserializeFromFirebase(item: any): any {
     const deserialized = { ...item };
     
     // Convert ISO strings back to Date objects
-    const dateFields = ['date', 'createdAt', 'updatedAt', 'lastLogin', 'uploadedAt', 'joinDate', 'timestamp', 'lastModified', 'lastAccessed'];
+    const dateFields = [
+      'date', 'createdAt', 'updatedAt', 'lastLogin', 'uploadedAt', 
+      'joinDate', 'timestamp', 'lastModified', 'lastAccessed', 'checkIn', 'checkOut'
+    ];
     
     dateFields.forEach(field => {
       if (deserialized[field] && typeof deserialized[field] === 'string') {
         try {
-          deserialized[field] = new Date(deserialized[field]);
+          const date = new Date(deserialized[field]);
+          if (!isNaN(date.getTime())) {
+            deserialized[field] = date;
+          }
         } catch (error) {
           console.warn(`Failed to parse date field ${field}:`, error);
         }
@@ -194,6 +300,7 @@ class FirebaseSyncService {
   }
 
   setupRealtimeListener(storeName: string, callback: (data: any[]) => void) {
+    // Remove existing listener if any
     if (this.listeners[storeName]) {
       this.removeRealtimeListener(storeName);
     }
@@ -204,8 +311,10 @@ class FirebaseSyncService {
         const data = snapshot.val();
         if (data) {
           const items = Object.values(data)
-            .map((item: any) => this.deserializeItem(item))
+            .map((item: any) => this.deserializeFromFirebase(item))
             .filter((item: any) => item.syncedBy !== this.deviceId); // Don't sync back our own changes
+          
+          console.log(`📡 Realtime update for ${storeName}: ${items.length} items`);
           callback(items);
         } else {
           callback([]);
@@ -259,6 +368,8 @@ class FirebaseSyncService {
       const syncTimeRef = ref(rtdb, `sync_metadata/${this.deviceId}/lastSync`);
       await set(syncTimeRef, new Date().toISOString());
       
+      localStorage.setItem('lastSyncTime', new Date().toISOString());
+      
       console.log('✅ Full sync completed');
     } catch (error) {
       console.error('❌ Full sync failed:', error);
@@ -267,17 +378,27 @@ class FirebaseSyncService {
   }
 
   async getSyncStatus() {
+    const lastSyncTime = localStorage.getItem('lastSyncTime');
     return {
       isOnline: this.isOnline,
       queueLength: this.syncQueue.length,
-      lastSync: localStorage.getItem('lastSyncTime') ? new Date(localStorage.getItem('lastSyncTime')!) : null,
-      deviceId: this.deviceId
+      lastSync: lastSyncTime ? new Date(lastSyncTime) : null,
+      deviceId: this.deviceId,
+      retryAttempts: this.retryAttempts
     };
   }
 
   // Specific method for receipts realtime listener (for backward compatibility)
   startRealtimeReceiptsListener(userId: string, callback: (data: any[]) => void) {
     this.setupRealtimeListener('receipts', callback);
+  }
+
+  // Clean up resources
+  destroy() {
+    this.removeRealtimeListener();
+    if (this.connectionCheckInterval) {
+      clearInterval(this.connectionCheckInterval);
+    }
   }
 }
 

@@ -3,7 +3,7 @@ import { firebaseSync } from './firebaseSync';
 
 class DatabaseService {
   private dbName = 'arkive-database';
-  private dbVersion = 10;
+  private dbVersion = 12;
   private db: IDBDatabase | null = null;
   private initPromise: Promise<void> | null = null;
   private syncEnabled = true;
@@ -69,11 +69,13 @@ class DatabaseService {
                 case 'clients':
                   const clientStore = db.createObjectStore('clients', { keyPath: 'id' });
                   clientStore.createIndex('cnic', 'cnic', { unique: true });
+                  clientStore.createIndex('name', 'name');
                   break;
                 case 'receipts':
                   const receiptStore = db.createObjectStore('receipts', { keyPath: 'id' });
                   receiptStore.createIndex('clientCnic', 'clientCnic');
                   receiptStore.createIndex('date', 'date');
+                  receiptStore.createIndex('createdAt', 'createdAt');
                   break;
                 case 'expenses':
                   const expenseStore = db.createObjectStore('expenses', { keyPath: 'id' });
@@ -202,24 +204,6 @@ class DatabaseService {
     });
   }
 
-  async deleteUser(userId: string): Promise<void> {
-    const store = await this.getObjectStore('users', 'readwrite');
-    
-    if (this.syncEnabled) {
-      firebaseSync.addToSyncQueue({ 
-        type: 'delete', 
-        store: 'users', 
-        data: { id: userId } 
-      }).catch(console.warn);
-    }
-    
-    return new Promise((resolve, reject) => {
-      const req = store.delete(userId);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-    });
-  }
-
   // ------------------ CLIENTS ------------------
   async createClient(client: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>): Promise<Client> {
     const store = await this.getObjectStore('clients', 'readwrite');
@@ -279,24 +263,6 @@ class DatabaseService {
     
     return new Promise((resolve, reject) => {
       const req = store.put(updated);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-    });
-  }
-
-  async deleteClient(id: string): Promise<void> {
-    const store = await this.getObjectStore('clients', 'readwrite');
-    
-    if (this.syncEnabled) {
-      firebaseSync.addToSyncQueue({ 
-        type: 'delete', 
-        store: 'clients', 
-        data: { id } 
-      }).catch(console.warn);
-    }
-    
-    return new Promise((resolve, reject) => {
-      const req = store.delete(id);
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
@@ -513,6 +479,7 @@ class DatabaseService {
         const notification = getReq.result;
         if (notification) {
           notification.read = true;
+          notification.lastModified = new Date();
           
           if (this.syncEnabled) {
             firebaseSync.addToSyncQueue({ 
@@ -549,6 +516,7 @@ class DatabaseService {
         notifications.forEach(notification => {
           if (!notification.read) {
             notification.read = true;
+            notification.lastModified = new Date();
             
             if (this.syncEnabled) {
               firebaseSync.addToSyncQueue({ 
@@ -876,6 +844,23 @@ class DatabaseService {
     });
   }
 
+  async clearAllData(): Promise<void> {
+    const stores = ['users', 'clients', 'receipts', 'expenses', 'activities', 'notifications', 'documents', 'employees', 'attendance'];
+    
+    for (const storeName of stores) {
+      await this.clearStore(storeName);
+    }
+    
+    // Clear sync queue
+    this.syncQueue = [];
+    this.saveSyncQueue();
+    
+    // Clear Firebase
+    await firebaseSync.wipeAllData();
+    
+    console.log('✅ All local and Firebase data cleared');
+  }
+
   async exportData(): Promise<string> {
     const [users, clients, receipts, expenses, activities, notifications, documents, employees, attendance] = await Promise.all([
       this.getAllUsers(),
@@ -902,7 +887,7 @@ class DatabaseService {
       exportDate: new Date().toISOString(),
       version: this.dbVersion,
       appName: 'Arkive',
-      deviceId: this.getDeviceId(),
+      deviceId: firebaseSync['deviceId'],
     }, null, 2);
   }
 
@@ -922,8 +907,10 @@ class DatabaseService {
       const store = await this.getObjectStore(storeName, 'readwrite');
       for (const item of items) {
         try {
+          // Convert date strings back to Date objects
+          const processedItem = this.deserializeDates(item);
           await new Promise<void>((resolve, reject) => {
-            const req = store.add(item);
+            const req = store.add(processedItem);
             req.onsuccess = () => resolve();
             req.onerror = () => reject(req.error);
           });
@@ -946,17 +933,57 @@ class DatabaseService {
     ]);
   }
 
-  private getDeviceId(): string {
-    let deviceId = localStorage.getItem('arkive-device-id');
-    if (!deviceId) {
-      deviceId = crypto.randomUUID();
-      localStorage.setItem('arkive-device-id', deviceId);
+  private deserializeDates(item: any): any {
+    const deserialized = { ...item };
+    
+    const dateFields = ['date', 'createdAt', 'updatedAt', 'lastLogin', 'uploadedAt', 'joinDate', 'timestamp', 'lastModified', 'lastAccessed', 'checkIn', 'checkOut'];
+    
+    dateFields.forEach(field => {
+      if (deserialized[field] && typeof deserialized[field] === 'string') {
+        try {
+          deserialized[field] = new Date(deserialized[field]);
+        } catch (error) {
+          console.warn(`Failed to parse date field ${field}:`, error);
+        }
+      }
+    });
+
+    // Handle nested date objects in accessLog
+    if (deserialized.accessLog && Array.isArray(deserialized.accessLog)) {
+      deserialized.accessLog = deserialized.accessLog.map((log: any) => ({
+        ...log,
+        timestamp: log.timestamp ? new Date(log.timestamp) : new Date()
+      }));
     }
-    return deviceId;
+
+    return deserialized;
   }
 
   async getSyncStatus() {
     return firebaseSync.getSyncStatus();
+  }
+
+  // Auto-create client when receipt is added
+  async autoCreateClientFromReceipt(clientName: string, clientCnic: string): Promise<Client> {
+    // Check if client already exists
+    const existingClient = await this.getClientByCnic(clientCnic);
+    if (existingClient) {
+      return existingClient;
+    }
+
+    // Create new client
+    const newClient = await this.createClient({
+      name: clientName,
+      cnic: clientCnic,
+      password: `client_${clientCnic.slice(-4)}`, // Default password using last 4 digits
+      type: 'Other',
+      phone: '',
+      email: '',
+      notes: 'Auto-created from receipt entry'
+    });
+
+    console.log(`✅ Auto-created client: ${clientName} (${clientCnic})`);
+    return newClient;
   }
 }
 

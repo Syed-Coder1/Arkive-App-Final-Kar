@@ -6,16 +6,17 @@ class AuthService {
   private currentUser: User | null = null;
   private sessionStartTime: Date | null = null;
   private readonly MAX_ADMIN_ACCOUNTS = 2;
+  private sessionCheckInterval: NodeJS.Timeout | null = null;
 
   async init(): Promise<void> {
     try {
-      console.log('Auth: Initializing authentication service...');
+      console.log('🔐 Initializing authentication service...');
       
       // Check Firebase connection and sync users
       const isConnected = await firebaseSync.checkConnection();
       if (isConnected) {
         try {
-          console.log('Auth: Syncing users from Firebase...');
+          console.log('🔄 Syncing users from Firebase...');
           const firebaseUsers = await firebaseSync.getStoreFromFirebase('users');
           
           if (firebaseUsers.length > 0) {
@@ -31,17 +32,17 @@ class AuthService {
                 lastLogin: user.lastLogin
               });
             }
-            console.log(`Auth: ${firebaseUsers.length} users synced from Firebase`);
+            console.log(`✅ ${firebaseUsers.length} users synced from Firebase`);
           }
         } catch (syncError) {
-          console.warn('Auth: Firebase sync failed, using local data:', syncError);
+          console.warn('⚠️ Firebase sync failed, using local data:', syncError);
         }
       }
 
       // Create default admin if no users exist
       const allUsers = await db.getAllUsers();
       if (allUsers.length === 0) {
-        console.log('Auth: Creating default admin user...');
+        console.log('👤 Creating default admin user...');
         const defaultAdmin = await db.createUserDirect({
           username: 'admin',
           password: 'admin123',
@@ -57,7 +58,7 @@ class AuthService {
             data: defaultAdmin
           });
         }
-        console.log('Auth: Default admin user created');
+        console.log('✅ Default admin user created');
       }
 
       // Check for stored session
@@ -74,18 +75,19 @@ class AuthService {
           const maxSessionTime = 30 * 60 * 1000; // 30 minutes
           
           if (sessionDuration > maxSessionTime) {
-            console.log('Auth: Session expired, logging out');
+            console.log('⏰ Session expired, logging out');
             await this.logout();
           } else {
-            console.log('Auth: Session restored for user:', this.currentUser?.username);
+            console.log('✅ Session restored for user:', this.currentUser?.username);
+            this.startSessionMonitoring();
           }
         } catch (error) {
-          console.error('Auth: Error restoring session:', error);
+          console.error('❌ Error restoring session:', error);
           await this.logout();
         }
       }
     } catch (error) {
-      console.error('Auth: Error during initialization:', error);
+      console.error('❌ Error during authentication initialization:', error);
     }
   }
 
@@ -98,7 +100,7 @@ class AuthService {
         await db.createActivity({
           userId: 'system',
           action: 'failed_login',
-          details: `Failed login attempt for username: ${username}`,
+          details: `Failed login attempt for username: ${username} from device: ${firebaseSync['deviceId']}`,
           timestamp: new Date(),
         });
         throw new Error('Invalid username or password');
@@ -107,16 +109,6 @@ class AuthService {
       // Update last login
       user.lastLogin = new Date();
       await db.updateUser(user);
-
-      // Sync to Firebase
-      const isConnected = await firebaseSync.checkConnection();
-      if (isConnected) {
-        await firebaseSync.addToSyncQueue({
-          type: 'update',
-          store: 'users',
-          data: user
-        });
-      }
 
       this.currentUser = user;
       this.sessionStartTime = new Date();
@@ -128,20 +120,24 @@ class AuthService {
       await db.createActivity({
         userId: user.id,
         action: 'login',
-        details: `User ${username} logged in successfully. Session started at ${this.sessionStartTime.toLocaleString()}`,
+        details: `User ${username} logged in successfully from device: ${firebaseSync['deviceId']}. Session started at ${this.sessionStartTime.toLocaleString()}`,
         timestamp: new Date(),
       });
 
+      // Start session monitoring
+      this.startSessionMonitoring();
+
       // Perform full sync and setup realtime listeners
+      const isConnected = await firebaseSync.checkConnection();
       if (isConnected) {
         await firebaseSync.performFullSync();
         this.setupRealtimeListeners();
       }
 
-      console.log('Auth: Login successful for user:', username);
+      console.log('✅ Login successful for user:', username);
       return user;
     } catch (error) {
-      console.error('Auth: Login error:', error);
+      console.error('❌ Login error:', error);
       throw error;
     }
   }
@@ -155,12 +151,18 @@ class AuthService {
         await db.createActivity({
           userId: this.currentUser.id,
           action: 'logout',
-          details: `User ${this.currentUser.username} logged out. Session duration: ${durationMinutes} minutes`,
+          details: `User ${this.currentUser.username} logged out from device: ${firebaseSync['deviceId']}. Session duration: ${durationMinutes} minutes`,
           timestamp: new Date(),
         });
       } catch (error) {
-        console.error('Auth: Error logging logout activity:', error);
+        console.error('❌ Error logging logout activity:', error);
       }
+    }
+
+    // Stop session monitoring
+    if (this.sessionCheckInterval) {
+      clearInterval(this.sessionCheckInterval);
+      this.sessionCheckInterval = null;
     }
 
     // Remove realtime listeners
@@ -171,7 +173,7 @@ class AuthService {
     localStorage.removeItem('currentUser');
     localStorage.removeItem('sessionStartTime');
     
-    console.log('Auth: User logged out');
+    console.log('✅ User logged out');
   }
 
   async register(username: string, password: string, role: 'admin' | 'employee' = 'admin'): Promise<User> {
@@ -190,7 +192,7 @@ class AuthService {
         throw new Error(`Maximum number of admin accounts (${this.MAX_ADMIN_ACCOUNTS}) reached`);
       }
 
-      // Only allow admin creation (no employee accounts)
+      // Only allow admin creation
       if (role !== 'admin') {
         throw new Error('Only admin accounts can be created');
       }
@@ -207,16 +209,6 @@ class AuthService {
         createdAt: new Date(),
       });
 
-      // Sync to Firebase
-      const isConnected = await firebaseSync.checkConnection();
-      if (isConnected) {
-        await firebaseSync.addToSyncQueue({
-          type: 'create',
-          store: 'users',
-          data: user
-        });
-      }
-
       // Log activity
       const actorId = this.currentUser?.id || 'system';
       const actorName = this.currentUser?.username || 'system';
@@ -224,27 +216,48 @@ class AuthService {
       await db.createActivity({
         userId: actorId,
         action: 'create_user',
-        details: `${actorName} created ${role} account for ${username}`,
+        details: `${actorName} created ${role} account for ${username} from device: ${firebaseSync['deviceId']}`,
         timestamp: new Date(),
       });
 
-      console.log('Auth: User registered successfully:', username);
+      console.log('✅ User registered successfully:', username);
       return user;
     } catch (error) {
-      console.error('Auth: Registration error:', error);
+      console.error('❌ Registration error:', error);
       throw error;
     }
   }
 
   private setupRealtimeListeners(): void {
-    const stores = ['users', 'clients', 'receipts', 'expenses', 'activities', 'notifications', 'documents', 'employees', 'attendance'];
+    const stores = ['users', 'clients', 'receipts', 'expenses', 'notifications', 'documents', 'employees', 'attendance'];
     
     stores.forEach(store => {
       firebaseSync.setupRealtimeListener(store, (data) => {
-        console.log(`📡 Realtime update received for ${store}:`, data.length, 'items');
+        console.log(`📡 Realtime update received for ${store}: ${data.length} items`);
         // The individual hooks will handle the data updates
       });
     });
+  }
+
+  private startSessionMonitoring(): void {
+    // Clear any existing interval
+    if (this.sessionCheckInterval) {
+      clearInterval(this.sessionCheckInterval);
+    }
+
+    // Check session every minute
+    this.sessionCheckInterval = setInterval(() => {
+      if (this.sessionStartTime) {
+        const sessionDuration = Date.now() - this.sessionStartTime.getTime();
+        const maxSessionTime = 30 * 60 * 1000; // 30 minutes
+        
+        if (sessionDuration > maxSessionTime) {
+          console.log('⏰ Session timeout, logging out');
+          this.logout();
+          window.location.reload();
+        }
+      }
+    }, 60000);
   }
 
   getCurrentUser(): User | null {
@@ -273,22 +286,6 @@ class AuthService {
       throw new Error('Only administrators can view all users');
     }
     return db.getAllUsers();
-  }
-
-  // Auto-logout on session timeout
-  startSessionMonitoring(): void {
-    setInterval(() => {
-      if (this.sessionStartTime) {
-        const sessionDuration = Date.now() - this.sessionStartTime.getTime();
-        const maxSessionTime = 30 * 60 * 1000; // 30 minutes
-        
-        if (sessionDuration > maxSessionTime) {
-          console.log('Auth: Session timeout, logging out');
-          this.logout();
-          window.location.reload();
-        }
-      }
-    }, 60000); // Check every minute
   }
 }
 
