@@ -127,7 +127,7 @@ export function Layout({ children, currentPage, onPageChange }: LayoutProps) {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+          <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
             {menuItems.map((item) => {
               const Icon = item.icon;
               return (
@@ -138,21 +138,21 @@ export function Layout({ children, currentPage, onPageChange }: LayoutProps) {
                     setSidebarOpen(false);
                   }}
                   className={clsx(
-                    "w-full flex items-center text-left rounded-lg transition-all duration-200",
-                    sidebarCollapsed ? "px-3 py-3 justify-center" : "px-4 py-3",
+                    "w-full flex items-center text-left rounded-2xl transition-all duration-300 sidebar-item-premium",
+                    sidebarCollapsed ? "px-3 py-4 justify-center" : "px-5 py-4",
                     currentPage === item.id
-                      ? "bg-white/15 text-white shadow-lg backdrop-blur-sm border border-white/10"
-                      : "text-blue-100 hover:bg-white/10 hover:text-white"
+                      ? "bg-white/20 text-white shadow-xl backdrop-blur-sm border border-white/20 scale-105"
+                      : "text-blue-100 hover:bg-white/15 hover:text-white hover:scale-102"
                   )}
                   title={sidebarCollapsed ? item.label : undefined}
                 >
-                  <Icon size={20} className={clsx(
+                  <Icon size={22} className={clsx(
                     "transition-all duration-200",
                     sidebarCollapsed ? "mx-auto" : "mr-3",
-                    currentPage === item.id ? "text-white" : ""
+                    currentPage === item.id ? "text-white drop-shadow-sm" : ""
                   )} />
                   {!sidebarCollapsed && (
-                    <span className="transition-all duration-200">{item.label}</span>
+                    <span className="transition-all duration-200 font-semibold">{item.label}</span>
                   )}
                 </button>
               );
@@ -160,68 +160,68 @@ export function Layout({ children, currentPage, onPageChange }: LayoutProps) {
           </nav>
 
           {/* Footer */}
-          <div className={clsx("border-t border-blue-500/20 dark:border-gray-700/50 mt-auto", sidebarCollapsed ? "p-3" : "p-4")}>
+          <div className={clsx("border-t border-blue-500/30 dark:border-gray-700/50 mt-auto backdrop-blur-sm", sidebarCollapsed ? "p-4" : "p-6")}>
             {!sidebarCollapsed ? (
               <>
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-4">
                   <div>
-                    <p className="text-sm font-medium text-white">{user?.username}</p>
-                    <p className="text-xs text-blue-200 capitalize flex items-center">
+                    <p className="text-base font-bold text-white">{user?.username}</p>
+                    <p className="text-sm text-blue-200 capitalize flex items-center font-medium">
                       {user?.role === 'admin' && <Shield className="w-3 h-3 mr-1" />}
                       {user?.role}
                     </p>
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-3">
                     <button
                       onClick={toggleDarkMode}
-                      className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 hover:scale-105"
+                      className="p-3 rounded-xl bg-white/15 hover:bg-white/25 transition-all duration-300 hover:scale-110 backdrop-blur-sm border border-white/20"
                       title="Toggle Dark Mode"
                     >
                       <div className={clsx("transition-all duration-300", themeTransition && "animate-spin")}>
-                        {darkMode ? <Sun size={18} className="text-yellow-300" /> : <Moon size={18} className="text-blue-100" />}
+                        {darkMode ? <Sun size={20} className="text-yellow-300" /> : <Moon size={20} className="text-blue-100" />}
                       </div>
                     </button>
                     <button
                       onClick={() => onPageChange('settings')}
-                      className="p-2 text-blue-100 hover:text-white transition-all duration-200 rounded-lg hover:bg-white/10 hover:scale-105"
+                      className="p-3 text-blue-100 hover:text-white transition-all duration-300 rounded-xl hover:bg-white/15 hover:scale-110 backdrop-blur-sm border border-white/20"
                       title="Settings"
                     >
-                      <Settings size={18} />
+                      <Settings size={20} />
                     </button>
                     <button
                       onClick={handleLogout}
-                      className="p-2 text-blue-100 hover:text-red-300 transition-all duration-200 rounded-lg hover:bg-red-500/20 hover:scale-105"
+                      className="p-3 text-blue-100 hover:text-red-300 transition-all duration-300 rounded-xl hover:bg-red-500/30 hover:scale-110 backdrop-blur-sm border border-white/20"
                       title="Logout"
                     >
-                      <LogOut size={18} />
+                      <LogOut size={20} />
                     </button>
                   </div>
                 </div>
               </>
             ) : (
-              <div className="flex flex-col items-center space-y-3">
+              <div className="flex flex-col items-center space-y-4">
                 <button 
                   onClick={toggleDarkMode} 
-                  className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 hover:scale-105"
+                  className="p-3 rounded-xl bg-white/15 hover:bg-white/25 transition-all duration-300 hover:scale-110 backdrop-blur-sm border border-white/20"
                   title="Toggle Dark Mode"
                 >
                   <div className={clsx("transition-all duration-300", themeTransition && "animate-spin")}>
-                    {darkMode ? <Sun size={18} className="text-yellow-300" /> : <Moon size={18} className="text-blue-100" />}
+                    {darkMode ? <Sun size={20} className="text-yellow-300" /> : <Moon size={20} className="text-blue-100" />}
                   </div>
                 </button>
                 <button
                   onClick={() => onPageChange('settings')}
-                  className="p-2 text-blue-100 hover:text-white transition-all duration-200 rounded-lg hover:bg-white/10 hover:scale-105"
+                  className="p-3 text-blue-100 hover:text-white transition-all duration-300 rounded-xl hover:bg-white/15 hover:scale-110 backdrop-blur-sm border border-white/20"
                   title="Settings"
                 >
-                  <Settings size={18} />
+                  <Settings size={20} />
                 </button>
                 <button
                   onClick={handleLogout}
-                  className="p-2 text-blue-100 hover:text-red-300 transition-all duration-200 rounded-lg hover:bg-red-500/20 hover:scale-105"
+                  className="p-3 text-blue-100 hover:text-red-300 transition-all duration-300 rounded-xl hover:bg-red-500/30 hover:scale-110 backdrop-blur-sm border border-white/20"
                   title="Logout"
                 >
-                  <LogOut size={18} />
+                  <LogOut size={20} />
                 </button>
               </div>
             )}
@@ -229,8 +229,8 @@ export function Layout({ children, currentPage, onPageChange }: LayoutProps) {
       </div>
 
       {/* Content */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="p-4 md:p-6 max-w-7xl mx-auto">
+      <main className="flex-1 overflow-y-auto bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/30 dark:from-gray-900 dark:via-blue-900/10 dark:to-indigo-900/10">
+        <div className="p-6 md:p-8 max-w-7xl mx-auto">
           {children}
         </div>
       </main>

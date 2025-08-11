@@ -4,16 +4,34 @@ const isDev = process.env.NODE_ENV === 'development';
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    width: 1400,
+    height: 900,
+    minWidth: 1200,
+    minHeight: 700,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       enableRemoteModule: false,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
     },
     icon: path.join(__dirname, 'assets/icon.png'), // Add an icon file
-    titleBarStyle: 'default',
+    titleBarStyle: 'hiddenInset',
     autoHideMenuBar: !isDev,
+    show: false, // Don't show until ready
+    backgroundColor: '#1f2937',
+    vibrancy: 'under-window',
+    visualEffectState: 'active'
+  });
+
+  // Show window when ready to prevent visual flash
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+    
+    // Focus the window
+    if (isDev) {
+      mainWindow.focus();
+    }
   });
 
   // Load the app

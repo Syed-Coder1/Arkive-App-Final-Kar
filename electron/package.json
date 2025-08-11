@@ -11,6 +11,14 @@
   "build": {
     "appId": "com.taxoffice.app",
     "productName": "Tax Office Management System",
+    "compression": "maximum",
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Arkive Tax Management"
+    },
     "directories": {
       "output": "dist"
     },
@@ -21,7 +29,8 @@
     ],
     "win": {
       "target": "nsis",
-      "icon": "assets/icon.ico"
+      "icon": "assets/icon.ico",
+      "requestedExecutionLevel": "asInvoker"
     },
     "linux": {
       "target": "AppImage",
@@ -30,6 +39,13 @@
     "mac": {
       "target": "dmg",
       "icon": "assets/icon.icns"
+    },
+    "extraResources": [
+      {
+        "from": "../public",
+        "to": "public",
+        "filter": ["**/*"]
+      }
     }
   },
   "devDependencies": {

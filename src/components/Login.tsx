@@ -186,58 +186,62 @@ export function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-blue-900 dark:to-indigo-900 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-md border border-gray-100 dark:border-gray-700 animate-fadeIn">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-blue-900 dark:to-indigo-900 flex items-center justify-center p-4 animate-gradient-flow">
+      <div className="glass-card rounded-3xl shadow-premium-lg p-10 w-full max-w-lg animate-fadeIn">
         {/* Logo and Branding */}
-        <div className="text-center mb-8">
-          <div className="mx-auto w-24 h-24 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-3xl flex items-center justify-center mb-6 shadow-2xl animate-gentle-bounce">
-            <Shield className="w-14 h-14 text-white" />
+        <div className="text-center mb-10">
+          <div className="mx-auto w-28 h-28 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 rounded-3xl flex items-center justify-center mb-8 shadow-premium-lg animate-gentle-bounce">
+            <Shield className="w-16 h-16 text-white drop-shadow-lg" />
           </div>
           <div className="mb-2">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            <h1 className="text-5xl font-bold text-gradient mb-2">
               Arkive
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 text-base font-semibold mt-2">
+            <p className="text-gray-600 dark:text-gray-400 text-lg font-bold mt-3">
               Secure Tax Management System
             </p>
           </div>
           
           {/* Connection Status */}
-          <div className="flex items-center justify-center space-x-2 text-sm mt-4 bg-gray-50 dark:bg-gray-800 rounded-full px-4 py-2">
+          <div className="flex items-center justify-center space-x-3 text-sm mt-6 glass-card rounded-full px-6 py-3 border border-gray-200 dark:border-gray-600">
             {isOnline ? (
-              <Wifi className="w-4 h-4 text-green-500" />
+              <Wifi className="w-5 h-5 text-green-500" />
             ) : (
-              <WifiOff className="w-4 h-4 text-red-500" />
+              <WifiOff className="w-5 h-5 text-red-500" />
             )}
-            <span className={`font-medium ${isOnline ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+            <span className={`font-bold ${isOnline ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
               {syncStatus}
             </span>
           </div>
           
-          <div className="flex items-center justify-center space-x-6 text-sm text-gray-500 dark:text-gray-400 mt-4">
+          <div className="flex items-center justify-center space-x-8 text-sm text-gray-500 dark:text-gray-400 mt-6">
             <div className="flex items-center">
-              <Shield className="w-4 h-4 mr-2 text-blue-500" />
-              <span className="font-medium">Encrypted</span>
+              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg mr-2">
+                <Shield className="w-4 h-4 text-blue-600" />
+              </div>
+              <span className="font-semibold">Encrypted</span>
             </div>
             <div className="flex items-center">
-              <Users className="w-4 h-4 mr-2 text-green-500" />
-              <span className="font-medium">Multi-User</span>
+              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg mr-2">
+                <Users className="w-4 h-4 text-green-600" />
+              </div>
+              <span className="font-semibold">Multi-User</span>
             </div>
           </div>
         </div>
 
         {/* Mode Toggle */}
-        <div className="space-y-3 mb-8">
+        <div className="space-y-4 mb-10">
           <button
             type="button"
             onClick={() => switchMode('login')}
-            className={`w-full py-4 px-6 rounded-xl text-base font-semibold transition-all duration-300 flex items-center justify-center shadow-lg ${
+            className={`w-full py-5 px-8 rounded-2xl text-lg font-bold transition-all duration-500 flex items-center justify-center shadow-premium ${
               mode === 'login'
-                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-xl transform scale-105'
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 hover:scale-102'
+                ? 'btn-premium text-white shadow-premium-lg transform scale-105'
+                : 'glass-card text-gray-600 dark:text-gray-400 hover:scale-102 border border-gray-200 dark:border-gray-600'
             }`}
           >
-            <LogIn className="w-5 h-5 mr-3" />
+            <LogIn className="w-6 h-6 mr-4" />
             Sign In to Account
           </button>
           
@@ -245,13 +249,13 @@ export function Login() {
             type="button"
             onClick={() => switchMode('signup')}
             disabled={!canCreateAdmin}
-            className={`w-full py-4 px-6 rounded-xl text-base font-semibold transition-all duration-300 flex items-center justify-center shadow-lg ${
+            className={`w-full py-5 px-8 rounded-2xl text-lg font-bold transition-all duration-500 flex items-center justify-center shadow-premium ${
               mode === 'signup'
-                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-xl transform scale-105'
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 hover:scale-102'
+                ? 'btn-premium text-white shadow-premium-lg transform scale-105'
+                : 'glass-card text-gray-600 dark:text-gray-400 hover:scale-102 border border-gray-200 dark:border-gray-600'
             } ${!canCreateAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            <UserPlus className="w-5 h-5 mr-3" />
+            <UserPlus className="w-6 h-6 mr-4" />
             Create Admin Account
           </button>
         </div>

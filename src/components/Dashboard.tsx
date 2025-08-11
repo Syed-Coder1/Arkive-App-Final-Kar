@@ -233,19 +233,19 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div 
           onClick={() => onPageChange('receipts')}
-          className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 cursor-pointer group stagger-item"
+          className="bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 text-white rounded-3xl p-8 shadow-premium-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-500 cursor-pointer group stagger-item animate-gradient-flow"
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-blue-100 text-sm font-medium">Total Revenue</p>
-              <p className="text-3xl font-bold mb-1">₨{stats.totalIncome.toLocaleString()}</p>
-              <p className="text-blue-200 text-sm">{stats.totalReceipts} receipts</p>
+              <p className="text-blue-100 text-sm font-semibold tracking-wide uppercase">Total Revenue</p>
+              <p className="text-4xl font-bold mb-2 text-shadow">₨{stats.totalIncome.toLocaleString()}</p>
+              <p className="text-blue-200 text-sm font-medium">{stats.totalReceipts} receipts</p>
             </div>
-            <div className="bg-white/20 p-3 rounded-xl group-hover:bg-white/30 transition-colors">
-              <DollarSign className="w-8 h-8" />
+            <div className="bg-white/20 p-4 rounded-2xl group-hover:bg-white/30 transition-all duration-300 group-hover:scale-110 group-hover:rotate-12">
+              <DollarSign className="w-10 h-10" />
             </div>
           </div>
-          <div className="mt-4 flex items-center text-blue-200 text-sm">
+          <div className="mt-6 flex items-center text-blue-200 text-sm font-medium">
             <ArrowRight className="w-4 h-4 mr-1" />
             View all receipts
           </div>
@@ -253,19 +253,19 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
 
         <div 
           onClick={() => onPageChange('expenses')}
-          className="bg-gradient-to-br from-red-500 to-red-600 text-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 cursor-pointer group stagger-item"
+          className="bg-gradient-to-br from-red-500 via-red-600 to-pink-600 text-white rounded-3xl p-8 shadow-premium-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-500 cursor-pointer group stagger-item animate-gradient-flow"
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-red-100 text-sm font-medium">Total Expenses</p>
-              <p className="text-3xl font-bold mb-1">₨{stats.totalExpenses.toLocaleString()}</p>
-              <p className="text-red-200 text-sm">{expenses.length} entries</p>
+              <p className="text-red-100 text-sm font-semibold tracking-wide uppercase">Total Expenses</p>
+              <p className="text-4xl font-bold mb-2 text-shadow">₨{stats.totalExpenses.toLocaleString()}</p>
+              <p className="text-red-200 text-sm font-medium">{expenses.length} entries</p>
             </div>
-            <div className="bg-white/20 p-3 rounded-xl group-hover:bg-white/30 transition-colors">
-              <CreditCard className="w-8 h-8" />
+            <div className="bg-white/20 p-4 rounded-2xl group-hover:bg-white/30 transition-all duration-300 group-hover:scale-110 group-hover:rotate-12">
+              <CreditCard className="w-10 h-10" />
             </div>
           </div>
-          <div className="mt-4 flex items-center text-red-200 text-sm">
+          <div className="mt-6 flex items-center text-red-200 text-sm font-medium">
             <ArrowRight className="w-4 h-4 mr-1" />
             Manage expenses
           </div>
@@ -273,19 +273,19 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
 
         <div 
           onClick={() => onPageChange('clients')}
-          className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 cursor-pointer group stagger-item"
+          className="bg-gradient-to-br from-green-500 via-green-600 to-emerald-600 text-white rounded-3xl p-8 shadow-premium-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-500 cursor-pointer group stagger-item animate-gradient-flow"
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-green-100 text-sm font-medium">Active Clients</p>
-              <p className="text-3xl font-bold mb-1">{stats.activeClients}</p>
-              <p className="text-green-200 text-sm">of {stats.totalClients} total</p>
+              <p className="text-green-100 text-sm font-semibold tracking-wide uppercase">Active Clients</p>
+              <p className="text-4xl font-bold mb-2 text-shadow">{stats.activeClients}</p>
+              <p className="text-green-200 text-sm font-medium">of {stats.totalClients} total</p>
             </div>
-            <div className="bg-white/20 p-3 rounded-xl group-hover:bg-white/30 transition-colors">
-              <Users className="w-8 h-8" />
+            <div className="bg-white/20 p-4 rounded-2xl group-hover:bg-white/30 transition-all duration-300 group-hover:scale-110 group-hover:rotate-12">
+              <Users className="w-10 h-10" />
             </div>
           </div>
-          <div className="mt-4 flex items-center text-green-200 text-sm">
+          <div className="mt-6 flex items-center text-green-200 text-sm font-medium">
             <ArrowRight className="w-4 h-4 mr-1" />
             View all clients
           </div>
@@ -293,19 +293,19 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
 
         <div 
           onClick={() => onPageChange('employees')}
-          className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 cursor-pointer group stagger-item"
+          className="bg-gradient-to-br from-purple-500 via-purple-600 to-violet-600 text-white rounded-3xl p-8 shadow-premium-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-500 cursor-pointer group stagger-item animate-gradient-flow"
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-purple-100 text-sm font-medium">Employees</p>
-              <p className="text-3xl font-bold mb-1">{stats.activeEmployees}</p>
-              <p className="text-purple-200 text-sm">{stats.presentToday} present today</p>
+              <p className="text-purple-100 text-sm font-semibold tracking-wide uppercase">Employees</p>
+              <p className="text-4xl font-bold mb-2 text-shadow">{stats.activeEmployees}</p>
+              <p className="text-purple-200 text-sm font-medium">{stats.presentToday} present today</p>
             </div>
-            <div className="bg-white/20 p-3 rounded-xl group-hover:bg-white/30 transition-colors">
-              <Users className="w-8 h-8" />
+            <div className="bg-white/20 p-4 rounded-2xl group-hover:bg-white/30 transition-all duration-300 group-hover:scale-110 group-hover:rotate-12">
+              <Users className="w-10 h-10" />
             </div>
           </div>
-          <div className="mt-4 flex items-center text-purple-200 text-sm">
+          <div className="mt-6 flex items-center text-purple-200 text-sm font-medium">
             <ArrowRight className="w-4 h-4 mr-1" />
             Manage employees
           </div>
@@ -314,46 +314,52 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
 
       {/* Secondary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-100 dark:border-gray-700 hover-lift stagger-item">
+        <div className="premium-card glass-card rounded-3xl p-8 shadow-premium-lg hover-lift stagger-item">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Net Profit</h3>
-            <TrendingUp className={`w-6 h-6 ${stats.netProfit >= 0 ? 'text-green-500' : 'text-red-500'}`} />
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Net Profit</h3>
+            <div className={`p-3 rounded-2xl ${stats.netProfit >= 0 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
+              <TrendingUp className={`w-8 h-8 ${stats.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`} />
+            </div>
           </div>
-          <p className={`text-3xl font-bold ${stats.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+          <p className={`text-4xl font-bold mb-2 ${stats.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
             ₨{stats.netProfit.toLocaleString()}
           </p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+          <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
             Profit Margin: {stats.profitMargin.toFixed(1)}%
           </p>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-100 dark:border-gray-700 hover-lift stagger-item">
+        <div className="premium-card glass-card rounded-3xl p-8 shadow-premium-lg hover-lift stagger-item">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">This Month</h3>
-            <Calendar className="w-6 h-6 text-blue-500" />
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white">This Month</h3>
+            <div className="p-3 rounded-2xl bg-blue-100 dark:bg-blue-900/30">
+              <Calendar className="w-8 h-8 text-blue-600" />
+            </div>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-3">
             <div className="flex justify-between">
-              <span className="text-sm text-gray-600 dark:text-gray-400">Income:</span>
-              <span className="font-semibold text-green-600">₨{stats.monthlyIncome.toLocaleString()}</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">Income:</span>
+              <span className="font-bold text-green-600 text-lg">₨{stats.monthlyIncome.toLocaleString()}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-gray-600 dark:text-gray-400">Expenses:</span>
-              <span className="font-semibold text-red-600">₨{stats.monthlyExpenses.toLocaleString()}</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">Expenses:</span>
+              <span className="font-bold text-red-600 text-lg">₨{stats.monthlyExpenses.toLocaleString()}</span>
             </div>
           </div>
         </div>
 
         <div 
           onClick={() => onPageChange('notifications')}
-          className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-100 dark:border-gray-700 hover-lift cursor-pointer group stagger-item"
+          className="premium-card glass-card rounded-3xl p-8 shadow-premium-lg hover-lift cursor-pointer group stagger-item"
         >
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Notifications</h3>
-            <Bell className="w-6 h-6 text-orange-500 group-hover:animate-gentle-bounce" />
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Notifications</h3>
+            <div className="p-3 rounded-2xl bg-orange-100 dark:bg-orange-900/30">
+              <Bell className="w-8 h-8 text-orange-600 group-hover:animate-gentle-bounce" />
+            </div>
           </div>
-          <p className="text-3xl font-bold text-orange-600">{stats.unreadNotifications}</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+          <p className="text-4xl font-bold text-orange-600 mb-2">{stats.unreadNotifications}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
             {stats.unreadNotifications > 0 ? 'Unread messages' : 'All caught up!'}
           </p>
         </div>
@@ -362,7 +368,7 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Revenue Trend */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-100 dark:border-gray-700 stagger-item">
+        <div className="chart-container stagger-item">
           <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
             <BarChart3 className="w-6 h-6 text-blue-600" />
             6-Month Revenue Trend
@@ -394,14 +400,24 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
                   fontWeight: 600
                 }}
               />
-              <Bar dataKey="income" fill="#10B981" radius={[4, 4, 0, 0]} name="income" />
-              <Bar dataKey="expense" fill="#EF4444" radius={[4, 4, 0, 0]} name="expense" />
+              <Bar dataKey="income" fill="url(#greenGradient)" radius={[6, 6, 0, 0]} name="income" />
+              <Bar dataKey="expense" fill="url(#redGradient)" radius={[6, 6, 0, 0]} name="expense" />
+              <defs>
+                <linearGradient id="greenGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#10B981" />
+                  <stop offset="100%" stopColor="#059669" />
+                </linearGradient>
+                <linearGradient id="redGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#EF4444" />
+                  <stop offset="100%" stopColor="#DC2626" />
+                </linearGradient>
+              </defs>
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         {/* Profit Trend */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-100 dark:border-gray-700 stagger-item">
+        <div className="chart-container stagger-item">
           <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
             <TrendingUp className="w-6 h-6 text-green-600" />
             Profit Analysis
@@ -433,64 +449,78 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
               <Line 
                 type="monotone" 
                 dataKey="profit" 
-                stroke="#3B82F6" 
-                strokeWidth={4}
-                dot={{ fill: '#3B82F6', strokeWidth: 3, r: 6 }}
-                activeDot={{ r: 8, stroke: '#3B82F6', strokeWidth: 3, fill: '#ffffff' }}
+                stroke="url(#blueGradient)" 
+                strokeWidth={5}
+                dot={{ fill: '#3B82F6', strokeWidth: 3, r: 8 }}
+                activeDot={{ r: 10, stroke: '#3B82F6', strokeWidth: 3, fill: '#ffffff', boxShadow: '0 0 10px rgba(59, 130, 246, 0.5)' }}
               />
+              <defs>
+                <linearGradient id="blueGradient" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#3B82F6" />
+                  <stop offset="100%" stopColor="#1D4ED8" />
+                </linearGradient>
+              </defs>
             </LineChart>
           </ResponsiveContainer>
         </div>
       </div>
 
       {/* Quick Actions */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-100 dark:border-gray-700 stagger-item">
+      <div className="glass-card rounded-3xl p-8 shadow-premium-lg stagger-item">
         <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
           <Plus className="w-6 h-6 text-blue-600" />
           Quick Actions
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <button
             onClick={() => onOpenForm('receipt')}
-            className="flex items-center gap-3 p-4 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl hover:from-blue-100 hover:to-blue-200 dark:hover:from-blue-800/30 dark:hover:to-blue-700/30 transition-all duration-300 group border border-blue-200 dark:border-blue-800"
+            className="flex items-center gap-3 p-6 bg-gradient-to-br from-blue-50 via-blue-100 to-indigo-100 dark:from-blue-900/30 dark:via-blue-800/30 dark:to-indigo-800/30 rounded-2xl hover:from-blue-100 hover:via-blue-200 hover:to-indigo-200 dark:hover:from-blue-800/40 dark:hover:via-blue-700/40 dark:hover:to-indigo-700/40 transition-all duration-500 group border-2 border-blue-200 dark:border-blue-700 hover:border-blue-300 dark:hover:border-blue-600 hover:scale-105 hover:shadow-xl"
           >
-            <Receipt className="w-6 h-6 text-blue-600 group-hover:scale-110 transition-transform" />
+            <div className="p-2 bg-blue-600 rounded-xl group-hover:scale-110 group-hover:rotate-12 transition-all duration-300">
+              <Receipt className="w-6 h-6 text-white" />
+            </div>
             <div className="text-left">
-              <p className="font-semibold text-blue-900 dark:text-blue-100">Add Receipt</p>
-              <p className="text-sm text-blue-600 dark:text-blue-300">Record new payment</p>
+              <p className="font-bold text-blue-900 dark:text-blue-100 text-lg">Add Receipt</p>
+              <p className="text-sm text-blue-700 dark:text-blue-300 font-medium">Record new payment</p>
             </div>
           </button>
 
           <button
             onClick={() => onOpenForm('client')}
-            className="flex items-center gap-3 p-4 bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl hover:from-green-100 hover:to-green-200 dark:hover:from-green-800/30 dark:hover:to-green-700/30 transition-all duration-300 group border border-green-200 dark:border-green-800"
+            className="flex items-center gap-3 p-6 bg-gradient-to-br from-green-50 via-green-100 to-emerald-100 dark:from-green-900/30 dark:via-green-800/30 dark:to-emerald-800/30 rounded-2xl hover:from-green-100 hover:via-green-200 hover:to-emerald-200 dark:hover:from-green-800/40 dark:hover:via-green-700/40 dark:hover:to-emerald-700/40 transition-all duration-500 group border-2 border-green-200 dark:border-green-700 hover:border-green-300 dark:hover:border-green-600 hover:scale-105 hover:shadow-xl"
           >
-            <Users className="w-6 h-6 text-green-600 group-hover:scale-110 transition-transform" />
+            <div className="p-2 bg-green-600 rounded-xl group-hover:scale-110 group-hover:rotate-12 transition-all duration-300">
+              <Users className="w-6 h-6 text-white" />
+            </div>
             <div className="text-left">
-              <p className="font-semibold text-green-900 dark:text-green-100">Add Client</p>
-              <p className="text-sm text-green-600 dark:text-green-300">New client profile</p>
+              <p className="font-bold text-green-900 dark:text-green-100 text-lg">Add Client</p>
+              <p className="text-sm text-green-700 dark:text-green-300 font-medium">New client profile</p>
             </div>
           </button>
 
           <button
             onClick={() => onOpenForm('expense')}
-            className="flex items-center gap-3 p-4 bg-gradient-to-r from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 rounded-xl hover:from-red-100 hover:to-red-200 dark:hover:from-red-800/30 dark:hover:to-red-700/30 transition-all duration-300 group border border-red-200 dark:border-red-800"
+            className="flex items-center gap-3 p-6 bg-gradient-to-br from-red-50 via-red-100 to-pink-100 dark:from-red-900/30 dark:via-red-800/30 dark:to-pink-800/30 rounded-2xl hover:from-red-100 hover:via-red-200 hover:to-pink-200 dark:hover:from-red-800/40 dark:hover:via-red-700/40 dark:hover:to-pink-700/40 transition-all duration-500 group border-2 border-red-200 dark:border-red-700 hover:border-red-300 dark:hover:border-red-600 hover:scale-105 hover:shadow-xl"
           >
-            <CreditCard className="w-6 h-6 text-red-600 group-hover:scale-110 transition-transform" />
+            <div className="p-2 bg-red-600 rounded-xl group-hover:scale-110 group-hover:rotate-12 transition-all duration-300">
+              <CreditCard className="w-6 h-6 text-white" />
+            </div>
             <div className="text-left">
-              <p className="font-semibold text-red-900 dark:text-red-100">Add Expense</p>
-              <p className="text-sm text-red-600 dark:text-red-300">Record expense</p>
+              <p className="font-bold text-red-900 dark:text-red-100 text-lg">Add Expense</p>
+              <p className="text-sm text-red-700 dark:text-red-300 font-medium">Record expense</p>
             </div>
           </button>
 
           <button
             onClick={() => onOpenForm('vault')}
-            className="flex items-center gap-3 p-4 bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl hover:from-purple-100 hover:to-purple-200 dark:hover:from-purple-800/30 dark:hover:to-purple-700/30 transition-all duration-300 group border border-purple-200 dark:border-purple-800"
+            className="flex items-center gap-3 p-6 bg-gradient-to-br from-purple-50 via-purple-100 to-violet-100 dark:from-purple-900/30 dark:via-purple-800/30 dark:to-violet-800/30 rounded-2xl hover:from-purple-100 hover:via-purple-200 hover:to-violet-200 dark:hover:from-purple-800/40 dark:hover:via-purple-700/40 dark:hover:to-violet-700/40 transition-all duration-500 group border-2 border-purple-200 dark:border-purple-700 hover:border-purple-300 dark:hover:border-purple-600 hover:scale-105 hover:shadow-xl"
           >
-            <Shield className="w-6 h-6 text-purple-600 group-hover:scale-110 transition-transform" />
+            <div className="p-2 bg-purple-600 rounded-xl group-hover:scale-110 group-hover:rotate-12 transition-all duration-300">
+              <Shield className="w-6 h-6 text-white" />
+            </div>
             <div className="text-left">
-              <p className="font-semibold text-purple-900 dark:text-purple-100">Upload Document</p>
-              <p className="text-sm text-purple-600 dark:text-purple-300">Secure vault</p>
+              <p className="font-bold text-purple-900 dark:text-purple-100 text-lg">Upload Document</p>
+              <p className="text-sm text-purple-700 dark:text-purple-300 font-medium">Secure vault</p>
             </div>
           </button>
         </div>
@@ -499,7 +529,7 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
       {/* Recent Activity & System Status */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Receipts */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-100 dark:border-gray-700 stagger-item">
+        <div className="glass-card rounded-3xl p-8 shadow-premium-lg stagger-item">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <Receipt className="w-6 h-6 text-blue-600" />
@@ -507,41 +537,43 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
             </h3>
             <button
               onClick={() => onPageChange('receipts')}
-              className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors flex items-center gap-1 text-sm font-medium"
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-all duration-300 flex items-center gap-1 text-sm font-semibold hover:scale-105"
             >
               View All <ArrowRight className="w-4 h-4" />
             </button>
           </div>
           
-          <div className="space-y-3">
+          <div className="space-y-4">
             {recentReceipts.length > 0 ? (
               recentReceipts.map((receipt, index) => (
                 <div 
                   key={receipt.id} 
-                  className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-200 cursor-pointer"
+                  className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 rounded-2xl hover:from-blue-50 hover:to-blue-100 dark:hover:from-blue-900/20 dark:hover:to-blue-800/20 transition-all duration-300 cursor-pointer hover:scale-102 hover:shadow-lg border border-gray-200 dark:border-gray-600"
                   onClick={() => onPageChange('receipts')}
                 >
                   <div>
-                    <p className="font-medium text-gray-900 dark:text-white">{receipt.clientName}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                    <p className="font-bold text-gray-900 dark:text-white text-lg">{receipt.clientName}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
                       {format(receipt.date, 'MMM dd, yyyy')}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-green-600">₨{receipt.amount.toLocaleString()}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
+                    <p className="font-bold text-green-600 text-xl">₨{receipt.amount.toLocaleString()}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 capitalize font-medium">
                       {receipt.paymentMethod.replace('_', ' ')}
                     </p>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="text-center py-8">
-                <Receipt className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-500 dark:text-gray-400">No receipts yet</p>
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Receipt className="w-8 h-8 text-gray-400" />
+                </div>
+                <p className="text-gray-500 dark:text-gray-400 font-medium">No receipts yet</p>
                 <button
                   onClick={() => onOpenForm('receipt')}
-                  className="mt-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm font-medium"
+                  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-300 text-sm font-semibold hover:scale-105"
                 >
                   Add your first receipt
                 </button>
@@ -551,54 +583,62 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
         </div>
 
         {/* System Status */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-100 dark:border-gray-700 stagger-item">
+        <div className="glass-card rounded-3xl p-8 shadow-premium-lg stagger-item">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <Activity className="w-6 h-6 text-green-600" />
               System Status
             </h3>
-            <div className={`w-3 h-3 rounded-full ${syncStatus.isOnline ? 'bg-green-500' : 'bg-red-500'} animate-pulse`}></div>
+            <div className={`w-4 h-4 rounded-full ${syncStatus.isOnline ? 'bg-green-500 shadow-green-500/50' : 'bg-red-500 shadow-red-500/50'} animate-pulse shadow-lg`}></div>
           </div>
           
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-xl">
+          <div className="space-y-5">
+            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 rounded-2xl border border-gray-200 dark:border-gray-600">
               <div className="flex items-center gap-3">
                 {syncStatus.isOnline ? (
-                  <CheckCircle className="w-5 h-5 text-green-500" />
+                  <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-xl">
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                  </div>
                 ) : (
-                  <AlertTriangle className="w-5 h-5 text-red-500" />
+                  <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-xl">
+                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                  </div>
                 )}
-                <span className="font-medium text-gray-900 dark:text-white">
+                <span className="font-bold text-gray-900 dark:text-white">
                   Firebase Connection
                 </span>
               </div>
-              <span className={`text-sm font-semibold ${
+              <span className={`text-sm font-bold px-3 py-1 rounded-full ${
                 syncStatus.isOnline ? 'text-green-600' : 'text-red-600'
               }`}>
                 {syncStatus.isOnline ? 'Connected' : 'Offline'}
               </span>
             </div>
 
-            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-xl">
+            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 rounded-2xl border border-gray-200 dark:border-gray-600">
               <div className="flex items-center gap-3">
-                <Clock className="w-5 h-5 text-blue-500" />
-                <span className="font-medium text-gray-900 dark:text-white">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
+                  <Clock className="w-5 h-5 text-blue-600" />
+                </div>
+                <span className="font-bold text-gray-900 dark:text-white">
                   Last Sync
                 </span>
               </div>
-              <span className="text-sm text-gray-600 dark:text-gray-400">
+              <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">
                 {syncStatus.lastSync ? format(syncStatus.lastSync, 'HH:mm') : 'Never'}
               </span>
             </div>
 
-            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-xl">
+            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 rounded-2xl border border-gray-200 dark:border-gray-600">
               <div className="flex items-center gap-3">
-                <RefreshCw className="w-5 h-5 text-orange-500" />
-                <span className="font-medium text-gray-900 dark:text-white">
+                <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-xl">
+                  <RefreshCw className="w-5 h-5 text-orange-600" />
+                </div>
+                <span className="font-bold text-gray-900 dark:text-white">
                   Pending Changes
                 </span>
               </div>
-              <span className="text-sm text-gray-600 dark:text-gray-400">
+              <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">
                 {syncStatus.queueLength}
               </span>
             </div>
@@ -607,7 +647,7 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
               <button
                 onClick={handleForceSync}
                 disabled={syncing}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-300 disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 px-6 py-4 btn-premium text-white rounded-2xl transition-all duration-300 disabled:opacity-50 font-semibold"
               >
                 <RefreshCw className={`w-5 h-5 ${syncing ? 'animate-spin' : ''}`} />
                 {syncing ? 'Syncing...' : 'Sync Now'}
@@ -618,51 +658,53 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
       </div>
 
       {/* Business Insights */}
-      <div className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-2xl p-8 shadow-xl stagger-item">
+      <div className="bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-600 text-white rounded-3xl p-10 shadow-premium-lg stagger-item animate-gradient-flow">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h3 className="text-2xl font-bold mb-2">Business Insights</h3>
-            <p className="text-indigo-100">Key performance indicators for your tax office</p>
+            <h3 className="text-3xl font-bold mb-3 text-shadow">Business Insights</h3>
+            <p className="text-indigo-100 text-lg font-medium">Key performance indicators for your tax office</p>
           </div>
-          <BarChart3 className="w-12 h-12 text-indigo-200" />
+          <div className="bg-white/20 p-4 rounded-3xl backdrop-blur-sm">
+            <BarChart3 className="w-12 h-12 text-white" />
+          </div>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-            <p className="text-indigo-100 text-sm mb-1">Average Receipt Value</p>
-            <p className="text-2xl font-bold">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-6 border border-white/30 hover:bg-white/20 transition-all duration-300">
+            <p className="text-indigo-100 text-sm mb-2 font-semibold uppercase tracking-wide">Average Receipt Value</p>
+            <p className="text-3xl font-bold text-shadow">
               ₨{stats.totalReceipts > 0 ? Math.round(stats.totalIncome / stats.totalReceipts).toLocaleString() : 0}
             </p>
           </div>
           
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-            <p className="text-indigo-100 text-sm mb-1">Client Retention</p>
-            <p className="text-2xl font-bold">
+          <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-6 border border-white/30 hover:bg-white/20 transition-all duration-300">
+            <p className="text-indigo-100 text-sm mb-2 font-semibold uppercase tracking-wide">Client Retention</p>
+            <p className="text-3xl font-bold text-shadow">
               {stats.totalClients > 0 ? Math.round((stats.activeClients / stats.totalClients) * 100) : 0}%
             </p>
           </div>
           
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-            <p className="text-indigo-100 text-sm mb-1">Employee Attendance</p>
-            <p className="text-2xl font-bold">
+          <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-6 border border-white/30 hover:bg-white/20 transition-all duration-300">
+            <p className="text-indigo-100 text-sm mb-2 font-semibold uppercase tracking-wide">Employee Attendance</p>
+            <p className="text-3xl font-bold text-shadow">
               {stats.totalEmployees > 0 ? Math.round((stats.presentToday / stats.totalEmployees) * 100) : 0}%
             </p>
           </div>
         </div>
         
-        <div className="mt-6 flex gap-4">
+        <div className="mt-8 flex gap-6">
           <button
             onClick={() => onPageChange('analytics')}
-            className="flex items-center gap-2 px-6 py-3 bg-white/20 backdrop-blur-sm rounded-xl hover:bg-white/30 transition-all duration-300 border border-white/30"
+            className="flex items-center gap-3 px-8 py-4 bg-white/20 backdrop-blur-sm rounded-2xl hover:bg-white/30 transition-all duration-300 border border-white/30 hover:scale-105 font-semibold"
           >
-            <BarChart3 className="w-5 h-5" />
+            <BarChart3 className="w-6 h-6" />
             View Analytics
           </button>
           <button
             onClick={() => onPageChange('tax-calculator')}
-            className="flex items-center gap-2 px-6 py-3 bg-white/20 backdrop-blur-sm rounded-xl hover:bg-white/30 transition-all duration-300 border border-white/30"
+            className="flex items-center gap-3 px-8 py-4 bg-white/20 backdrop-blur-sm rounded-2xl hover:bg-white/30 transition-all duration-300 border border-white/30 hover:scale-105 font-semibold"
           >
-            <Calculator className="w-5 h-5" />
+            <Calculator className="w-6 h-6" />
             Tax Calculator
           </button>
         </div>
