@@ -1018,8 +1018,26 @@ class DatabaseService {
       notes: 'Auto-created from receipt entry'
     });
 
+    // Log the auto-creation
+    await this.createActivity({
+      userId: 'system',
+      action: 'auto_create_client',
+      details: `Auto-created client: ${clientName} (${clientCnic}) from receipt entry`,
+      timestamp: new Date(),
+    });
     console.log(`✅ Auto-created client: ${clientName} (${clientCnic})`);
     return newClient;
+  }
+
+  // Get employee by employee ID
+  async getEmployeeByEmployeeId(employeeId: string): Promise<Employee | null> {
+    const store = await this.getObjectStore('employees');
+    const index = store.index('employeeId');
+    return new Promise((resolve, reject) => {
+      const req = index.get(employeeId);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
   }
 }
 

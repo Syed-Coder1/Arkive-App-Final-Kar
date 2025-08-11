@@ -108,9 +108,18 @@ class FirebaseSyncService {
     try {
       console.log('🗑️ Wiping all Firebase data...');
       
-      // Remove all data from Firebase
-      const rootRef = ref(rtdb, '/');
-      await remove(rootRef);
+      // Remove all data stores from Firebase
+      const stores = ['users', 'clients', 'receipts', 'expenses', 'employees', 'attendance', 'notifications', 'documents', 'sync_metadata'];
+      
+      for (const store of stores) {
+        try {
+          const storeRef = ref(rtdb, store);
+          await remove(storeRef);
+          console.log(`✅ Cleared ${store} from Firebase`);
+        } catch (error) {
+          console.warn(`⚠️ Failed to clear ${store}:`, error);
+        }
+      }
       
       // Clear local sync queue
       this.syncQueue = [];
@@ -119,6 +128,9 @@ class FirebaseSyncService {
       // Clear local storage
       localStorage.removeItem('arkive-sync-queue');
       localStorage.removeItem('lastSyncTime');
+      localStorage.removeItem('currentUser');
+      localStorage.removeItem('sessionStartTime');
+      localStorage.removeItem('arkive-device-id');
       
       console.log('✅ All data wiped successfully');
     } catch (error) {

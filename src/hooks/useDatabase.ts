@@ -15,6 +15,7 @@ export function useClients() {
       setClients(data);
     } catch (error) {
       console.error('Error fetching clients:', error);
+      setClients([]);
     } finally {
       setLoading(false);
     }
@@ -25,7 +26,7 @@ export function useClients() {
     
     // Setup realtime listener
     firebaseSync.setupRealtimeListener('clients', (remoteData: Client[]) => {
-      if (remoteData.length >= 0) { // Allow empty arrays
+      if (Array.isArray(remoteData)) { // Ensure it's an array
         setClients(prevClients => {
           // Create a map to merge data properly
           const clientMap = new Map<string, Client>();
@@ -56,6 +57,8 @@ export function useClients() {
           );
         });
         console.log(`✅ Clients updated from Firebase: ${remoteData.length} items`);
+      } else {
+        console.warn('⚠️ Invalid clients data from Firebase:', remoteData);
       }
     });
 
@@ -94,6 +97,7 @@ export function useClients() {
       throw error;
     }
   };
+
   return { clients, loading, createClient, updateClient, deleteClient, refetch: fetchClients };
 }
 
@@ -107,6 +111,7 @@ export function useReceipts() {
       setReceipts(data);
     } catch (error) {
       console.error('Error fetching receipts:', error);
+      setReceipts([]);
     } finally {
       setLoading(false);
     }
@@ -117,7 +122,7 @@ export function useReceipts() {
     
     // Setup realtime listener
     firebaseSync.setupRealtimeListener('receipts', (remoteData: Receipt[]) => {
-      if (remoteData.length >= 0) { // Allow empty arrays
+      if (Array.isArray(remoteData)) { // Ensure it's an array
         setReceipts(prevReceipts => {
           // Create a map to merge data properly
           const receiptMap = new Map<string, Receipt>();
@@ -148,6 +153,8 @@ export function useReceipts() {
           );
         });
         console.log(`✅ Receipts updated from Firebase: ${remoteData.length} items`);
+      } else {
+        console.warn('⚠️ Invalid receipts data from Firebase:', remoteData);
       }
     });
 

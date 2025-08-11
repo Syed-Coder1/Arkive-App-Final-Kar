@@ -254,24 +254,24 @@ export default function Receipts({ showForm: externalShowForm, onCloseForm }: Re
   };
 
   const handleDelete = async (receiptId: string, clientName: string) => {
-    if (confirm(`Are you sure you want to delete the receipt for ${clientName}? This action cannot be undone.`)) {
+    if (confirm(`⚠️ DELETE CONFIRMATION\n\nAre you sure you want to delete the receipt for "${clientName}"?\n\nThis action cannot be undone and will be synced across all devices.`)) {
       try {
         await db.deleteReceipt(receiptId);
         
         // Update UI immediately
         setReceipts(prev => prev.filter(r => r.id !== receiptId));
-        showMessage('Receipt deleted successfully!', 'success');
+        showMessage('✅ Receipt deleted successfully and synced to Firebase!', 'success');
         
         // Log activity
         await db.createActivity({
           userId: user!.id,
           action: 'delete_receipt',
-          details: `Deleted receipt for ${clientName} (ID: ${receiptId})`,
+          details: `Deleted receipt for ${clientName} (ID: ${receiptId}) - Amount: ₨${receipts.find(r => r.id === receiptId)?.amount?.toLocaleString() || 'Unknown'}`,
           timestamp: new Date(),
         });
       } catch (error) {
         console.error('Error deleting receipt:', error);
-        showMessage('Error deleting receipt. Please try again.', 'error');
+        showMessage('❌ Error deleting receipt. Please try again.', 'error');
       }
     }
   };

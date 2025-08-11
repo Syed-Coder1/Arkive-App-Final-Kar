@@ -403,11 +403,15 @@ export function Login() {
 
         {/* Default Credentials */}
         {mode === 'login' && (
-          <div className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 rounded-xl p-4 border border-gray-200 dark:border-gray-600">
+          <div className="mt-8 text-center text-sm text-gray-500 dark:text-gray-400 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-6 border-2 border-blue-200 dark:border-blue-700">
             <p className="font-semibold mb-2 text-gray-700 dark:text-gray-300">Default Admin Credentials:</p>
-            <div className="space-y-1">
-              <p>Username: <code className="bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded-lg font-mono font-bold">admin</code></p>
-              <p>Password: <code className="bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded-lg font-mono font-bold">admin123</code></p>
+            <div className="space-y-3">
+              <p className="flex items-center justify-center gap-2">
+                Username: <code className="bg-blue-100 dark:bg-blue-900/50 px-3 py-2 rounded-lg font-mono font-bold text-blue-800 dark:text-blue-200">admin</code>
+              </p>
+              <p className="flex items-center justify-center gap-2">
+                Password: <code className="bg-blue-100 dark:bg-blue-900/50 px-3 py-2 rounded-lg font-mono font-bold text-blue-800 dark:text-blue-200">admin123</code>
+              </p>
             </div>
           </div>
         )}

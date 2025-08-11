@@ -39,12 +39,12 @@ html, body, #root {
 
 /* Enhanced hover animations */
 .hover-lift:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  transform: translateY(-6px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
 }
 
 .hover-scale:hover {
-  transform: scale(1.02);
+  transform: scale(1.03);
 }
 
 /* Button animations */
@@ -62,12 +62,12 @@ button:active {
 
 /* Enhanced card animations */
 .card {
-  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
 }
 
 /* Sidebar animations */
@@ -193,6 +193,7 @@ button:active {
 .stagger-item:nth-child(7) { animation-delay: 0.22s; }
 .stagger-item:nth-child(8) { animation-delay: 0.24s; }
 .stagger-item:nth-child(9) { animation-delay: 0.26s; }
+.stagger-item:nth-child(10) { animation-delay: 0.28s; }
 
 /* Bounce animation for notifications */
 @keyframes gentleBounce {
@@ -452,4 +453,44 @@ a, button, input, select, textarea {
 .dark .auth-card {
   background: rgba(31, 41, 55, 0.95);
   border: 1px solid rgba(75, 85, 99, 0.3);
+}
+
+/* Enhanced gradient animations */
+@keyframes gradientShift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradientShift 3s ease infinite;
+}
+
+/* Enhanced button hover effects */
+.btn-primary {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #1d4ed8, #1e40af);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(59, 130, 246, 0.4);
+}
+
+/* Enhanced form styling */
+.form-input {
+  transition: all 0.2s ease-in-out;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.form-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+  transform: translateY(-1px);
 }

@@ -178,13 +178,13 @@ const Settings: React.FC = () => {
   };
 
   const handleWipeAllData = async () => {
-    if (!confirm('⚠️ WARNING: This will permanently delete ALL data from both local storage and Firebase. This action CANNOT be undone!')) {
+    if (!confirm('⚠️ CRITICAL WARNING: This will permanently delete ALL data from both local storage and Firebase.\n\nThis includes:\n• All clients and receipts\n• All expenses and employees\n• All documents and user accounts\n• All activity logs and notifications\n\nThis action CANNOT be undone!\n\nAre you absolutely sure?')) {
       return;
     }
 
-    const confirmText = prompt('Type "WIPE ALL DATA" to confirm this destructive action:');
+    const confirmText = prompt('⚠️ FINAL CONFIRMATION\n\nType exactly "WIPE ALL DATA" to confirm this destructive action:');
     if (confirmText !== 'WIPE ALL DATA') {
-      showMessage('Data wipe cancelled - confirmation text did not match', 'error');
+      showMessage('Data wipe cancelled - confirmation text did not match exactly', 'error');
       return;
     }
 
@@ -192,22 +192,24 @@ const Settings: React.FC = () => {
       setLoading(true);
       setSyncing(true);
       
+      showMessage('Wiping all data... This may take a moment.', 'error');
+      
       // Clear all local data
       await db.clearAllData();
       
       // Clear all Firebase data
       await firebaseSync.wipeAllData();
       
-      showMessage('All data wiped successfully! The page will reload.', 'success');
+      showMessage('✅ All data wiped successfully! The page will reload in 3 seconds.', 'success');
       
       // Reload the page after a short delay
       setTimeout(() => {
         window.location.reload();
-      }, 2000);
+      }, 3000);
       
     } catch (error) {
       console.error('Error wiping data:', error);
-      showMessage('Error wiping data. Please try again.', 'error');
+      showMessage('❌ Error wiping data. Please try again or contact support.', 'error');
     } finally {
       setLoading(false);
       setSyncing(false);

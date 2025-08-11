@@ -105,11 +105,20 @@ export function EmployeeManagement() {
     e.preventDefault();
     
     try {
-      // Check if username already exists
-      const existingUser = await db.getUserByUsername(employeeForm.username);
-      if (existingUser && !editingEmployee) {
-        alert('Username already exists. Please choose a different username.');
-        return;
+      // Check if username already exists (only for new employees)
+      if (!editingEmployee) {
+        const existingUser = await db.getUserByUsername(employeeForm.username);
+        if (existingUser) {
+          alert('Username already exists. Please choose a different username.');
+          return;
+        }
+        
+        // Check if employee ID already exists
+        const existingEmployee = employees.find(emp => emp.employeeId === employeeForm.employeeId);
+        if (existingEmployee) {
+          alert('Employee ID already exists. Please use a different ID.');
+          return;
+        }
       }
 
       const employeeData = {
@@ -121,8 +130,8 @@ export function EmployeeManagement() {
       if (editingEmployee) {
         await updateEmployee({ ...editingEmployee, ...employeeData, updatedAt: new Date() });
         
-        // Update user account if username or password changed
-        if (employeeForm.username !== editingEmployee.username || employeeForm.password) {
+        // Update user account if it exists
+        try {
           const userAccount = await db.getUserByUsername(editingEmployee.username);
           if (userAccount) {
             await db.updateUser({
@@ -131,13 +140,25 @@ export function EmployeeManagement() {
               password: employeeForm.password || userAccount.password
             });
           }
+        } catch (userError) {
+          console.warn('Could not update user account:', userError);
         }
       } else {
         // Create employee
         const newEmployee = await createEmployee(employeeData);
         
-        // Create user account for employee
+        // Create user account for employee (limited to 10 employee accounts)
         try {
+          const allUsers = await db.getAllUsers();
+          const employeeUsers = allUsers.filter(u => u.role === 'employee');
+          
+          if (employeeUsers.length >= 10) {
+            alert('Maximum number of employee accounts (10) reached. Employee created without login access.');
+            resetEmployeeForm();
+            setShowEmployeeForm(false);
+            return;
+          }
+          
           await db.createUser({
             username: employeeForm.username,
             password: employeeForm.password,
@@ -152,9 +173,11 @@ export function EmployeeManagement() {
             details: `Created employee account for ${employeeForm.name} (${employeeForm.employeeId}) with username: ${employeeForm.username}`,
             timestamp: new Date(),
           });
+          
+          alert(`Employee ${employeeForm.name} created successfully with login access!`);
         } catch (userError) {
           console.error('Error creating user account for employee:', userError);
-          // Don't fail the employee creation, just log the error
+          alert(`Employee ${employeeForm.name} created successfully, but login account creation failed. They can be added later.`);
           await db.createActivity({
             userId: user!.id,
             action: 'employee_account_error',

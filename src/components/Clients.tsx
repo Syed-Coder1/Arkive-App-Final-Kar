@@ -221,24 +221,24 @@ export function Clients({ showForm: externalShowForm, onCloseForm }: ClientsProp
   };
 
   const handleDelete = async (clientId: string, clientName: string) => {
-    if (confirm(`Are you sure you want to delete client "${clientName}"? This action cannot be undone.`)) {
+    if (confirm(`⚠️ DELETE CONFIRMATION\n\nAre you sure you want to delete client "${clientName}"?\n\nThis will also affect:\n• All associated receipts will remain but show as "Unknown Client"\n• All documents in the vault for this client\n\nThis action cannot be undone and will be synced across all devices.`)) {
       try {
         await db.deleteClient(clientId);
         
         // Update UI immediately
         setClients(prev => prev.filter(c => c.id !== clientId));
-        showMessage('Client deleted successfully!', 'success');
+        showMessage('✅ Client deleted successfully and synced to Firebase!', 'success');
         
         // Log activity
         await db.createActivity({
           userId: user!.id,
           action: 'delete_client',
-          details: `Deleted client ${clientName} (ID: ${clientId})`,
+          details: `Deleted client ${clientName} (ID: ${clientId}) - CNIC: ${clients.find(c => c.id === clientId)?.cnic || 'Unknown'}`,
           timestamp: new Date(),
         });
       } catch (error) {
         console.error('Error deleting client:', error);
-        showMessage('Error deleting client. Please try again.', 'error');
+        showMessage('❌ Error deleting client. Please try again.', 'error');
       }
     }
   };
