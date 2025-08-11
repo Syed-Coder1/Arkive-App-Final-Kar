@@ -509,18 +509,4 @@ export function useDatabase() {
     updateAttendance: attendanceHook.updateAttendance,
     refetchAttendance: attendanceHook.refetch,
   };
-export const useAttendance = () => {
-  // Example structure – replace with your logic
-  const [attendance, setAttendance] = useState([]);
-  
-  useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, "attendance"), (snapshot) => {
-      setAttendance(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
-    return () => unsubscribe();
-  }, []);
-
-  return { attendance, setAttendance };
-};
-
 }
