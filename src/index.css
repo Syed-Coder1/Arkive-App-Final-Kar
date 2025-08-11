@@ -7,6 +7,23 @@ html, body, #root {
   height: 100%;
   margin: 0;
   overflow: hidden;
+  font-size: 14px; /* Base font size for Windows desktop */
+}
+
+/* Windows desktop optimization */
+@media screen and (min-width: 1024px) {
+  html {
+    font-size: 16px; /* Larger base font for desktop */
+  }
+  
+  .dashboard-metric-card {
+    min-height: 200px; /* Ensure consistent card heights */
+  }
+  
+  .form-container {
+    max-width: 600px; /* Larger forms for desktop */
+    min-height: auto;
+  }
 }
 
 /* Global smooth transitions */

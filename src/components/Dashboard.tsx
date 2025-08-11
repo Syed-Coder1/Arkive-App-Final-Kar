@@ -281,7 +281,7 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div 
           onClick={() => onPageChange('receipts')}
-          className="dashboard-metric-card bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 text-white rounded-3xl p-10 shadow-premium-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-500 cursor-pointer group stagger-item animate-gradient-flow"
+          className="dashboard-metric-card bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 text-white rounded-3xl p-8 shadow-premium-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-500 cursor-pointer group stagger-item animate-gradient-flow"
         >
           <div className="flex items-center justify-between">
             <div>
@@ -301,7 +301,7 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
 
         <div 
           onClick={() => onPageChange('expenses')}
-          className="dashboard-metric-card bg-gradient-to-br from-red-500 via-red-600 to-pink-600 text-white rounded-3xl p-10 shadow-premium-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-500 cursor-pointer group stagger-item animate-gradient-flow"
+          className="dashboard-metric-card bg-gradient-to-br from-red-500 via-red-600 to-pink-600 text-white rounded-3xl p-8 shadow-premium-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-500 cursor-pointer group stagger-item animate-gradient-flow"
         >
           <div className="flex items-center justify-between">
             <div>
@@ -321,7 +321,7 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
 
         <div 
           onClick={() => onPageChange('clients')}
-          className="dashboard-metric-card bg-gradient-to-br from-green-500 via-green-600 to-emerald-600 text-white rounded-3xl p-10 shadow-premium-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-500 cursor-pointer group stagger-item animate-gradient-flow"
+          className="dashboard-metric-card bg-gradient-to-br from-green-500 via-green-600 to-emerald-600 text-white rounded-3xl p-8 shadow-premium-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-500 cursor-pointer group stagger-item animate-gradient-flow"
         >
           <div className="flex items-center justify-between">
             <div>
@@ -341,7 +341,7 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
 
         <div 
           onClick={() => onPageChange('employees')}
-          className="dashboard-metric-card bg-gradient-to-br from-purple-500 via-purple-600 to-violet-600 text-white rounded-3xl p-10 shadow-premium-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-500 cursor-pointer group stagger-item animate-gradient-flow"
+          className="dashboard-metric-card bg-gradient-to-br from-purple-500 via-purple-600 to-violet-600 text-white rounded-3xl p-8 shadow-premium-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-500 cursor-pointer group stagger-item animate-gradient-flow"
         >
           <div className="flex items-center justify-between">
             <div>
@@ -362,7 +362,7 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
 
       {/* Secondary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="premium-card glass-card rounded-3xl p-10 shadow-premium-lg hover-lift stagger-item">
+        <div className="premium-card glass-card rounded-3xl p-8 shadow-premium-lg hover-lift stagger-item">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Net Profit</h3>
             <div className={`p-4 rounded-3xl shadow-lg ${stats.netProfit >= 0 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
@@ -377,7 +377,7 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
           </p>
         </div>
 
-        <div className="premium-card glass-card rounded-3xl p-10 shadow-premium-lg hover-lift stagger-item">
+        <div className="premium-card glass-card rounded-3xl p-8 shadow-premium-lg hover-lift stagger-item">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-2xl font-bold text-gray-900 dark:text-white">This Month</h3>
             <div className="p-4 rounded-3xl bg-blue-100 dark:bg-blue-900/30 shadow-lg">
@@ -398,7 +398,7 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
 
         <div 
           onClick={() => onPageChange('notifications')}
-          className="premium-card glass-card rounded-3xl p-10 shadow-premium-lg hover-lift cursor-pointer group stagger-item"
+          className="premium-card glass-card rounded-3xl p-8 shadow-premium-lg hover-lift cursor-pointer group stagger-item"
         >
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Notifications</h3>
@@ -514,7 +514,7 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
       </div>
 
       {/* Quick Actions */}
-      <div className="glass-card rounded-3xl p-10 shadow-premium-lg stagger-item">
+      <div className="glass-card rounded-3xl p-8 shadow-premium-lg stagger-item">
         <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 flex items-center gap-3">
           <Plus className="w-8 h-8 text-blue-600" />
           Quick Actions
@@ -577,7 +577,7 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
       {/* Recent Activity & System Status */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Recent Receipts */}
-        <div className="glass-card rounded-3xl p-10 shadow-premium-lg stagger-item">
+        <div className="glass-card rounded-3xl p-8 shadow-premium-lg stagger-item">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
               <Receipt className="w-8 h-8 text-blue-600" />
@@ -631,7 +631,7 @@ export function Dashboard({ onPageChange, onOpenForm }: DashboardProps) {
         </div>
 
         {/* System Status */}
-        <div className="glass-card rounded-3xl p-10 shadow-premium-lg stagger-item">
+        <div className="glass-card rounded-3xl p-8 shadow-premium-lg stagger-item">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
               <Activity className="w-8 h-8 text-green-600" />

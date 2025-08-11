@@ -4,24 +4,29 @@ const isDev = process.env.NODE_ENV === 'development';
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
-    width: 1400,
-    height: 900,
-    minWidth: 1200,
-    minHeight: 700,
+    width: 1600,
+    height: 1000,
+    minWidth: 1400,
+    minHeight: 800,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       enableRemoteModule: false,
       webSecurity: true,
       allowRunningInsecureContent: false,
+      zoomFactor: 1.0, // Ensure 100% zoom
     },
     icon: path.join(__dirname, 'assets/icon.png'), // Add an icon file
     titleBarStyle: 'hiddenInset',
     autoHideMenuBar: !isDev,
     show: false, // Don't show until ready
     backgroundColor: '#1f2937',
-    vibrancy: 'under-window',
-    visualEffectState: 'active'
+    vibrancy: 'under-window'
+  });
+
+  // Set zoom level to 100%
+  mainWindow.webContents.once('dom-ready', () => {
+    mainWindow.webContents.setZoomFactor(1.0);
   });
 
   // Show window when ready to prevent visual flash

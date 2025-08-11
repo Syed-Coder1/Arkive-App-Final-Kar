@@ -187,7 +187,7 @@ export function Login() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-blue-900 dark:to-indigo-900 flex items-center justify-center p-4 animate-gradient-flow">
-      <div className="glass-card rounded-3xl shadow-premium-lg p-10 w-full max-w-lg animate-fadeIn">
+      <div className="glass-card rounded-3xl shadow-premium-lg p-8 w-full max-w-lg animate-fadeIn">
         {/* Logo and Branding */}
         <div className="text-center mb-10">
           <div className="mx-auto w-28 h-28 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 rounded-3xl flex items-center justify-center mb-8 shadow-premium-lg animate-gentle-bounce">
