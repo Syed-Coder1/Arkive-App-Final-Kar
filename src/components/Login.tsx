@@ -185,54 +185,54 @@ export function Login() {
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-md border border-gray-100 dark:border-gray-700 animate-fadeIn">
         {/* Logo and Branding */}
         <div className="text-center mb-8">
-          <div className="mx-auto w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
-            <Shield className="w-12 h-12 text-white" />
+          <div className="mx-auto w-24 h-24 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-3xl flex items-center justify-center mb-6 shadow-2xl animate-gentle-bounce">
+            <Shield className="w-14 h-14 text-white" />
           </div>
           <div className="mb-2">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
               Arkive
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">
+            <p className="text-gray-600 dark:text-gray-400 text-base font-semibold mt-2">
               Secure Tax Management System
             </p>
           </div>
           
           {/* Connection Status */}
-          <div className="flex items-center justify-center space-x-2 text-xs mt-3">
+          <div className="flex items-center justify-center space-x-2 text-sm mt-4 bg-gray-50 dark:bg-gray-800 rounded-full px-4 py-2">
             {isOnline ? (
-              <Wifi className="w-3 h-3 text-green-500" />
+              <Wifi className="w-4 h-4 text-green-500" />
             ) : (
-              <WifiOff className="w-3 h-3 text-red-500" />
+              <WifiOff className="w-4 h-4 text-red-500" />
             )}
-            <span className={isOnline ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+            <span className={`font-medium ${isOnline ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
               {syncStatus}
             </span>
           </div>
           
-          <div className="flex items-center justify-center space-x-4 text-xs text-gray-500 dark:text-gray-400 mt-2">
+          <div className="flex items-center justify-center space-x-6 text-sm text-gray-500 dark:text-gray-400 mt-4">
             <div className="flex items-center">
-              <Shield className="w-3 h-3 mr-1" />
-              <span>Encrypted</span>
+              <Shield className="w-4 h-4 mr-2 text-blue-500" />
+              <span className="font-medium">Encrypted</span>
             </div>
             <div className="flex items-center">
-              <Users className="w-3 h-3 mr-1" />
-              <span>Multi-User</span>
+              <Users className="w-4 h-4 mr-2 text-green-500" />
+              <span className="font-medium">Multi-User</span>
             </div>
           </div>
         </div>
 
         {/* Mode Toggle */}
-        <div className="space-y-2 mb-6">
+        <div className="space-y-3 mb-8">
           <button
             type="button"
             onClick={() => switchMode('login')}
-            className={`w-full py-3 px-4 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center ${
+            className={`w-full py-4 px-6 rounded-xl text-base font-semibold transition-all duration-300 flex items-center justify-center shadow-lg ${
               mode === 'login'
-                ? 'bg-blue-600 text-white shadow-lg'
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-xl transform scale-105'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 hover:scale-102'
             }`}
           >
-            <LogIn className="w-4 h-4 mr-2" />
+            <LogIn className="w-5 h-5 mr-3" />
             Sign In to Account
           </button>
           
@@ -240,23 +240,23 @@ export function Login() {
             type="button"
             onClick={() => switchMode('signup')}
             disabled={!canCreateAdmin}
-            className={`w-full py-3 px-4 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center ${
+            className={`w-full py-4 px-6 rounded-xl text-base font-semibold transition-all duration-300 flex items-center justify-center shadow-lg ${
               mode === 'signup'
-                ? 'bg-blue-600 text-white shadow-lg'
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-xl transform scale-105'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 hover:scale-102'
             } ${!canCreateAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            <UserPlus className="w-4 h-4 mr-2" />
+            <UserPlus className="w-5 h-5 mr-3" />
             Create Admin Account
           </button>
         </div>
 
         {/* Admin Limit Notice */}
         {!canCreateAdmin && mode === 'signup' && (
-          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 mb-4">
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-2 border-amber-200 dark:border-amber-800 rounded-xl p-4 mb-6">
             <div className="flex items-center">
-              <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 mr-2" />
-              <p className="text-sm text-amber-700 dark:text-amber-300">
+              <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 mr-3" />
+              <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
                 Maximum admin accounts (2) reached. Only login is available.
               </p>
             </div>
@@ -265,7 +265,7 @@ export function Login() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label htmlFor="username" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
               Username
             </label>
             <input
@@ -273,7 +273,7 @@ export function Login() {
               id="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+              className="w-full px-4 py-4 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-lg font-medium"
               placeholder="Enter your username"
               required
               autoFocus
@@ -283,7 +283,7 @@ export function Login() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label htmlFor="password" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
               Password
             </label>
             <div className="relative">
@@ -292,7 +292,7 @@ export function Login() {
                 id="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 pr-12 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                className="w-full px-4 py-4 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 pr-12 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-lg font-medium"
                 placeholder="Enter your password"
                 required
                 minLength={6}
@@ -301,17 +301,17 @@ export function Login() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200"
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-300 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600"
                 disabled={loading}
               >
-                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}
               </button>
             </div>
           </div>
 
           {mode === 'signup' && (
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                 Confirm Password
               </label>
               <div className="relative">
@@ -320,7 +320,7 @@ export function Login() {
                   id="confirmPassword"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 pr-12 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                  className="w-full px-4 py-4 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 pr-12 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-lg font-medium"
                   placeholder="Confirm your password"
                   required
                   minLength={6}
@@ -329,10 +329,10 @@ export function Login() {
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200"
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-300 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600"
                   disabled={loading}
                 >
-                  {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  {showConfirmPassword ? <EyeOff size={22} /> : <Eye size={22} />}
                 </button>
               </div>
             </div>
@@ -340,40 +340,40 @@ export function Login() {
 
           {/* Error Message */}
           {error && (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg flex items-center animate-slideInRight">
-              <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
-              <span className="text-sm">{error}</span>
+            <div className="bg-gradient-to-r from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 border-2 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-6 py-4 rounded-xl flex items-center animate-slideInRight shadow-lg">
+              <AlertCircle className="w-5 h-5 mr-3 flex-shrink-0" />
+              <span className="text-sm font-medium">{error}</span>
             </div>
           )}
 
           {/* Success Message */}
           {success && (
-            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 px-4 py-3 rounded-lg flex items-center animate-slideInRight">
-              <CheckCircle className="w-4 h-4 mr-2 flex-shrink-0" />
-              <span className="text-sm">{success}</span>
+            <div className="bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 border-2 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 px-6 py-4 rounded-xl flex items-center animate-slideInRight shadow-lg">
+              <CheckCircle className="w-5 h-5 mr-3 flex-shrink-0" />
+              <span className="text-sm font-medium">{success}</span>
             </div>
           )}
 
           <button
             type="submit"
             disabled={loading || (mode === 'signup' && !canCreateAdmin)}
-            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 px-4 rounded-lg hover:from-blue-700 hover:to-indigo-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 px-6 rounded-xl hover:from-blue-700 hover:to-indigo-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 font-bold text-lg shadow-xl hover:shadow-2xl transform hover:scale-105 disabled:hover:scale-100"
           >
             {loading ? (
               <div className="flex items-center justify-center">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mr-3"></div>
                 {mode === 'login' ? 'Signing in...' : 'Creating account...'}
               </div>
             ) : (
               <div className="flex items-center justify-center">
                 {mode === 'login' ? (
                   <>
-                    <LogIn className="w-5 h-5 mr-2" />
+                    <LogIn className="w-6 h-6 mr-3" />
                     Sign In
                   </>
                 ) : (
                   <>
-                    <UserPlus className="w-5 h-5 mr-2" />
+                    <UserPlus className="w-6 h-6 mr-3" />
                     Create Admin Account
                   </>
                 )}
@@ -383,19 +383,19 @@ export function Login() {
         </form>
 
         {/* Security Features */}
-        <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+        <div className="mt-10 pt-8 border-t border-gray-200 dark:border-gray-700">
           <div className="text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-4">
               Security Features
             </p>
-            <div className="grid grid-cols-2 gap-4 text-xs text-gray-600 dark:text-gray-400">
+            <div className="grid grid-cols-2 gap-6 text-sm text-gray-600 dark:text-gray-400">
               <div className="flex items-center justify-center">
-                <Shield className="w-3 h-3 mr-1 text-green-500" />
-                <span>Firebase Sync</span>
+                <Shield className="w-4 h-4 mr-2 text-green-500" />
+                <span className="font-medium">Firebase Sync</span>
               </div>
               <div className="flex items-center justify-center">
-                <Users className="w-3 h-3 mr-1 text-blue-500" />
-                <span>Session Tracking</span>
+                <Users className="w-4 h-4 mr-2 text-blue-500" />
+                <span className="font-medium">Session Tracking</span>
               </div>
             </div>
           </div>
@@ -403,10 +403,12 @@ export function Login() {
 
         {/* Default Credentials */}
         {mode === 'login' && (
-          <div className="mt-4 text-center text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
-            <p className="font-medium mb-1">Default Admin Credentials:</p>
-            <p>Username: <code className="bg-gray-200 dark:bg-gray-600 px-1 rounded">admin</code></p>
-            <p>Password: <code className="bg-gray-200 dark:bg-gray-600 px-1 rounded">admin123</code></p>
+          <div className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 rounded-xl p-4 border border-gray-200 dark:border-gray-600">
+            <p className="font-semibold mb-2 text-gray-700 dark:text-gray-300">Default Admin Credentials:</p>
+            <div className="space-y-1">
+              <p>Username: <code className="bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded-lg font-mono font-bold">admin</code></p>
+              <p>Password: <code className="bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded-lg font-mono font-bold">admin123</code></p>
+            </div>
           </div>
         )}
       </div>

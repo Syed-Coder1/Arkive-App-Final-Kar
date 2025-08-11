@@ -12,11 +12,17 @@ import {
   Calendar,
   CreditCard,
   BarChart3,
-  Shield
+  Shield,
+  Wifi,
+  WifiOff,
+  RefreshCw,
+  Activity
 } from 'lucide-react';
 import { useDatabase } from '../hooks/useDatabase';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
+import { firebaseSync } from '../services/firebaseSync';
+import { useAuth } from '../contexts/AuthContext';
 
 interface DashboardProps {
   onPageChange: (page: string) => void;
@@ -31,12 +37,47 @@ export const Dashboard: React.FC<DashboardProps> = ({ onPageChange, onOpenForm }
     clients, 
     expenses, 
     notifications, 
+    employees,
+    attendance,
     markNotificationAsRead,
     markAllNotificationsAsRead 
   } = useDatabase();
+  const { user } = useAuth();
   
   const [showNotifications, setShowNotifications] = useState(false);
   const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<any>({ isOnline: true, queueLength: 0, lastSync: null });
+  const [syncing, setSyncing] = useState(false);
+
+  // Load sync status
+  useEffect(() => {
+    const loadSyncStatus = async () => {
+      try {
+        const status = await firebaseSync.getSyncStatus();
+        setSyncStatus(status);
+      } catch (error) {
+        console.error('Error loading sync status:', error);
+      }
+    };
+
+    loadSyncStatus();
+    const interval = setInterval(loadSyncStatus, 10000); // Update every 10 seconds
+    return () => clearInterval(interval);
+  }, []);
+
+  // Force sync function
+  const handleForceSync = async () => {
+    setSyncing(true);
+    try {
+      await firebaseSync.performFullSync();
+      const status = await firebaseSync.getSyncStatus();
+      setSyncStatus(status);
+    } catch (error) {
+      console.error('Force sync failed:', error);
+    } finally {
+      setSyncing(false);
+    }
+  };
   
   // Memoized chart data to prevent flickering
   const chartData = React.useMemo(() => {
@@ -90,6 +131,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onPageChange, onOpenForm }
   const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
   const netProfit = totalRevenue - totalExpenses;
   const unreadNotifications = notifications.filter(n => !n.read);
+  const activeEmployees = employees.filter(emp => emp.status === 'active').length;
+  const todayAttendance = attendance.filter(att => 
+    format(att.date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+  );
 
   // Current month stats
   const currentMonth = new Date();
@@ -200,28 +245,139 @@ export const Dashboard: React.FC<DashboardProps> = ({ onPageChange, onOpenForm }
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <BarChart3 className="w-7 h-7 text-white" />
+            </div>
             Dashboard
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Welcome back! Here's what's happening with your business.
+          <p className="text-gray-600 dark:text-gray-400 mt-2 flex items-center gap-4">
+            Welcome back, <span className="font-medium text-gray-900 dark:text-white">{user?.username}</span>! 
+            <span className="flex items-center gap-2 text-sm">
+              {syncStatus.isOnline ? (
+                <Wifi className="w-4 h-4 text-green-500" />
+              ) : (
+                <WifiOff className="w-4 h-4 text-red-500" />
+              )}
+              <span className={syncStatus.isOnline ? 'text-green-600' : 'text-red-600'}>
+                {syncStatus.isOnline ? 'Online' : 'Offline'}
+              </span>
+              {syncStatus.queueLength > 0 && (
+                <span className="text-orange-600">({syncStatus.queueLength} pending)</span>
+              )}
+            </span>
           </p>
         </div>
         
-        {/* Notifications */}
-        <div className="relative">
+        {/* Notifications and Sync */}
+        <div className="flex items-center gap-3">
+          {/* Sync Button */}
+          <button
+            onClick={handleForceSync}
+            disabled={syncing || !syncStatus.isOnline}
+            className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Force sync with Firebase"
+          >
+            <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Syncing...' : 'Sync'}
+          </button>
+
+          {/* Notifications */}
+          <div className="relative">
           <button
             onClick={() => setShowNotifications(!showNotifications)}
-            className="relative p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+            className="relative p-3 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all duration-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700"
           >
             <Bell className="w-6 h-6" />
             {unreadNotifications.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-bounce">
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center animate-gentle-bounce shadow-lg">
                 {unreadNotifications.length}
               </span>
             )}
           </button>
+          </div>
+        </div>
+      </div>
 
+      {/* Enhanced Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        {[
+          {
+            title: 'Total Revenue',
+            value: `Rs. ${totalRevenue.toLocaleString()}`,
+            change: currentMonthRevenue > 0 ? `+Rs. ${currentMonthRevenue.toLocaleString()} this month` : 'No revenue this month',
+            icon: TrendingUp,
+            color: 'text-green-600',
+            bgColor: 'bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20',
+            borderColor: 'border-green-200 dark:border-green-800'
+          },
+          {
+            title: 'Active Clients',
+            value: clients.length.toString(),
+            change: `${clients.filter(c => new Date(c.createdAt) >= currentMonthStart).length} new this month`,
+            icon: Users,
+            color: 'text-blue-600',
+            bgColor: 'bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20',
+            borderColor: 'border-blue-200 dark:border-blue-800'
+          },
+          {
+            title: 'Total Expenses',
+            value: `Rs. ${totalExpenses.toLocaleString()}`,
+            change: currentMonthExpenseTotal > 0 ? `Rs. ${currentMonthExpenseTotal.toLocaleString()} this month` : 'No expenses this month',
+            icon: DollarSign,
+            color: 'text-red-600',
+            bgColor: 'bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20',
+            borderColor: 'border-red-200 dark:border-red-800'
+          },
+          {
+            title: 'Net Profit',
+            value: `Rs. ${netProfit.toLocaleString()}`,
+            change: `${netProfit >= 0 ? 'Profit' : 'Loss'} margin: ${totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(1) : 0}%`,
+            icon: TrendingUp,
+            color: netProfit >= 0 ? 'text-green-600' : 'text-red-600',
+            bgColor: netProfit >= 0 ? 'bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20' : 'bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20',
+            borderColor: netProfit >= 0 ? 'border-green-200 dark:border-green-800' : 'border-red-200 dark:border-red-800'
+          },
+          {
+            title: 'Employees',
+            value: activeEmployees.toString(),
+            change: `${todayAttendance.filter(att => att.status === 'present').length} present today`,
+            icon: Users,
+            color: 'text-purple-600',
+            bgColor: 'bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20',
+            borderColor: 'border-purple-200 dark:border-purple-800'
+          }
+        ].map((card, index) => (
+          <div
+            key={card.title}
+            className={`${card.bgColor} ${card.borderColor} p-6 rounded-2xl border-2 hover-lift transition-all duration-300 group cursor-pointer`}
+            style={{ animationDelay: `${index * 100}ms` }}
+            onClick={() => {
+              if (card.title === 'Total Revenue') onPageChange('receipts');
+              else if (card.title === 'Active Clients') onPageChange('clients');
+              else if (card.title === 'Total Expenses') onPageChange('expenses');
+              else if (card.title === 'Employees') onPageChange('employees');
+            }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors">
+                  {card.title}
+                </p>
+                <p className={`text-3xl font-bold ${card.color} mt-2 group-hover:scale-105 transition-transform`}>
+                  {card.value}
+                </p>
+              </div>
+              <div className={`p-3 rounded-xl ${card.color.replace('text-', 'bg-').replace('-600', '-100')} dark:bg-opacity-20 group-hover:scale-110 transition-transform`}>
+                <card.icon className={`w-8 h-8 ${card.color}`} />
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">
+              {card.change}
+            </p>
+          </div>
+        ))}
+      </div>
           {/* Notifications Dropdown */}
           {showNotifications && (
             <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50 animate-slideInRight max-h-96 overflow-y-auto">
@@ -306,52 +462,29 @@ export const Dashboard: React.FC<DashboardProps> = ({ onPageChange, onOpenForm }
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statsCards.map((card, index) => (
-          <div
-            key={card.title}
-            className={`${card.bgColor} p-6 rounded-xl border border-gray-200 dark:border-gray-700 hover-lift transition-all duration-300`}
-            style={{ animationDelay: `${index * 100}ms` }}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                  {card.title}
-                </p>
-                <p className={`text-2xl font-bold ${card.color} mt-2`}>
-                  {card.value}
-                </p>
-              </div>
-              <card.icon className={`w-8 h-8 ${card.color}`} />
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              {card.change}
-            </p>
-          </div>
-        ))}
-      </div>
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Revenue Trends */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg hover-lift">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-blue-600" />
             Revenue Trends (Last 6 Months)
           </h2>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={320}>
             <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="opacity-30" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="opacity-50" />
               <XAxis 
                 dataKey="month" 
-                tick={{ fontSize: 12, fill: '#6b7280' }}
-                axisLine={{ stroke: '#d1d5db' }}
-                tickLine={{ stroke: '#d1d5db' }}
+                tick={{ fontSize: 13, fill: '#6b7280', fontWeight: 500 }}
+                axisLine={{ stroke: '#d1d5db', strokeWidth: 2 }}
+                tickLine={{ stroke: '#d1d5db', strokeWidth: 2 }}
               />
               <YAxis 
-                tick={{ fontSize: 12, fill: '#6b7280' }}
-                axisLine={{ stroke: '#d1d5db' }}
-                tickLine={{ stroke: '#d1d5db' }}
+                tick={{ fontSize: 13, fill: '#6b7280', fontWeight: 500 }}
+                axisLine={{ stroke: '#d1d5db', strokeWidth: 2 }}
+                tickLine={{ stroke: '#d1d5db', strokeWidth: 2 }}
+                tickFormatter={(value) => `${(value / 1000)}K`}
               />
               <Tooltip 
                 formatter={(value: number, name: string) => [
@@ -360,25 +493,52 @@ export const Dashboard: React.FC<DashboardProps> = ({ onPageChange, onOpenForm }
                 ]}
                 contentStyle={{ 
                   backgroundColor: '#ffffff',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '12px',
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
+                  fontSize: '14px',
+                  fontWeight: 500
                 }}
                 labelStyle={{ color: '#374151', fontWeight: 'medium' }}
               />
-              <Line type="monotone" dataKey="income" stroke="#10B981" strokeWidth={3} name="Income" />
-              <Line type="monotone" dataKey="expense" stroke="#EF4444" strokeWidth={3} name="Expenses" />
-              <Line type="monotone" dataKey="profit" stroke="#3B82F6" strokeWidth={3} name="Profit" />
+              <Line 
+                type="monotone" 
+                dataKey="income" 
+                stroke="#10B981" 
+                strokeWidth={4} 
+                name="Income"
+                dot={{ fill: '#10B981', strokeWidth: 2, r: 5 }}
+                activeDot={{ r: 7, stroke: '#10B981', strokeWidth: 2 }}
+              />
+              <Line 
+                type="monotone" 
+                dataKey="expense" 
+                stroke="#EF4444" 
+                strokeWidth={4} 
+                name="Expenses"
+                dot={{ fill: '#EF4444', strokeWidth: 2, r: 5 }}
+                activeDot={{ r: 7, stroke: '#EF4444', strokeWidth: 2 }}
+              />
+              <Line 
+                type="monotone" 
+                dataKey="profit" 
+                stroke="#3B82F6" 
+                strokeWidth={4} 
+                name="Profit"
+                dot={{ fill: '#3B82F6', strokeWidth: 2, r: 5 }}
+                activeDot={{ r: 7, stroke: '#3B82F6', strokeWidth: 2 }}
+              />
             </LineChart>
           </ResponsiveContainer>
         </div>
 
         {/* Expense Breakdown */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg hover-lift">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-red-600" />
             Expense Breakdown
           </h2>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={320}>
             <PieChart>
               <Pie
                 data={expenseData}
@@ -388,7 +548,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onPageChange, onOpenForm }
                 label={({ category, percentage }) => 
                   percentage > 8 ? `${category}` : ''
                 }
-                outerRadius={80}
+                outerRadius={90}
+                innerRadius={30}
                 fill="#8884d8"
                 dataKey="amount"
               >
@@ -403,9 +564,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onPageChange, onOpenForm }
                 ]}
                 contentStyle={{ 
                   backgroundColor: '#ffffff',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '12px',
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
+                  fontSize: '14px',
+                  fontWeight: 500
                 }}
               />
             </PieChart>
@@ -414,27 +577,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ onPageChange, onOpenForm }
       </div>
 
       {/* Quick Actions */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+          <Plus className="w-5 h-5 text-blue-600" />
           Quick Actions
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {quickActions.map((action, index) => (
             <button
               key={action.title}
               onClick={action.action}
-              className={`${action.color} ${action.hoverColor} text-white p-6 rounded-lg transition-all duration-300 hover-lift group`}
+              className={`${action.color} ${action.hoverColor} text-white p-6 rounded-2xl transition-all duration-300 hover-lift group shadow-lg hover:shadow-xl`}
               style={{ animationDelay: `${index * 100}ms` }}
             >
               <div className="flex items-center space-x-4">
-                <div className="p-3 bg-white/20 rounded-lg group-hover:bg-white/30 transition-colors duration-300">
-                  <action.icon className="w-6 h-6" />
+                <div className="p-4 bg-white/20 rounded-xl group-hover:bg-white/30 transition-all duration-300 group-hover:scale-110">
+                  <action.icon className="w-7 h-7" />
                 </div>
                 <div className="text-left">
-                  <h3 className="font-semibold">{action.title}</h3>
-                  <p className="text-sm opacity-90">{action.description}</p>
+                  <h3 className="font-bold text-lg">{action.title}</h3>
+                  <p className="text-sm opacity-90 mt-1">{action.description}</p>
                 </div>
-                <Plus className="w-5 h-5 ml-auto group-hover:rotate-90 transition-transform duration-300" />
+                <Plus className="w-6 h-6 ml-auto group-hover:rotate-90 transition-transform duration-300" />
               </div>
             </button>
           ))}
@@ -444,40 +608,154 @@ export const Dashboard: React.FC<DashboardProps> = ({ onPageChange, onOpenForm }
       {/* Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Receipts */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg hover-lift">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <Receipt className="w-5 h-5 text-green-600" />
               Recent Receipts
             </h2>
-            <Receipt className="w-5 h-5 text-gray-400" />
+            <button
+              onClick={() => onPageChange('receipts')}
+              className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
+            >
+              View All →
+            </button>
           </div>
-          <div className="space-y-3 max-h-64 overflow-y-auto">
+          <div className="space-y-3 max-h-80 overflow-y-auto">
             {receipts.slice(0, 5).map((receipt) => (
               <div
                 key={receipt.id}
-                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200"
+                className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 rounded-xl hover:from-blue-50 hover:to-blue-100 dark:hover:from-blue-900/20 dark:hover:to-blue-800/20 transition-all duration-300 cursor-pointer group"
+                onClick={() => onPageChange('receipts')}
               >
                 <div>
-                  <p className="font-medium text-gray-900 dark:text-white">
+                  <p className="font-semibold text-gray-900 dark:text-white group-hover:text-blue-900 dark:group-hover:text-blue-100 transition-colors">
                     {receipt.clientName}
                   </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 group-hover:text-blue-700 dark:group-hover:text-blue-300 transition-colors">
                     {receipt.date ? format(new Date(receipt.date), 'MMM dd, yyyy') : 'No Date'}
                   </p>
                 </div>
-                <span className="font-semibold text-green-600 dark:text-green-400">
+                <span className="font-bold text-green-600 dark:text-green-400 text-lg group-hover:scale-105 transition-transform">
                   Rs. {receipt.amount.toLocaleString()}
                 </span>
               </div>
             ))}
             {receipts.length === 0 && (
-              <p className="text-gray-500 dark:text-gray-400 text-center py-4">
-                No receipts yet
+              <div className="text-center py-8">
+                <Receipt className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                <p className="text-gray-500 dark:text-gray-400">No receipts yet</p>
+                <button
+                  onClick={() => onOpenForm('receipt')}
+                  className="mt-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
+                >
+                  Create your first receipt →
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
               </p>
             )}
           </div>
         </div>
 
+        {/* Recent Activity Summary */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg hover-lift">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <Activity className="w-5 h-5 text-purple-600" />
+              System Overview
+            </h2>
+            <button
+              onClick={() => onPageChange('activity')}
+              className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
+            >
+              View All →
+            </button>
+          </div>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl p-4">
+                <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">Total Clients</p>
+                <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">{clients.length}</p>
+              </div>
+              <div className="bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl p-4">
+                <p className="text-sm text-green-600 dark:text-green-400 font-medium">Active Employees</p>
+                <p className="text-2xl font-bold text-green-700 dark:text-green-300">{activeEmployees}</p>
+              </div>
+            </div>
+            
+            <div className="bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-purple-600 dark:text-purple-400 font-medium">Today's Attendance</p>
+                  <p className="text-lg font-bold text-purple-700 dark:text-purple-300">
+                    {todayAttendance.filter(att => att.status === 'present').length} / {activeEmployees} Present
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-purple-600 dark:text-purple-400">
+                    {activeEmployees > 0 ? Math.round((todayAttendance.filter(att => att.status === 'present').length / activeEmployees) * 100) : 0}%
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-xl p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-orange-600 dark:text-orange-400 font-medium">Sync Status</p>
+                  <p className="text-lg font-bold text-orange-700 dark:text-orange-300">
+                    {syncStatus.isOnline ? 'Connected' : 'Offline'}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-orange-600 dark:text-orange-400">
+                    {syncStatus.lastSync ? format(syncStatus.lastSync, 'HH:mm') : 'Never'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Expenses */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg hover-lift">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+            <CreditCard className="w-5 h-5 text-red-600" />
+            Recent Expenses
+          </h2>
+          <button
+            onClick={() => onPageChange('expenses')}
+            className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
+          >
+            View All →
+          </button>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {expenses.slice(0, 6).map((expense, index) => (
+            <div
+              key={expense.id}
+              className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 rounded-xl p-4 hover:from-red-50 hover:to-red-100 dark:hover:from-red-900/20 dark:hover:to-red-800/20 transition-all duration-300 cursor-pointer group"
+              onClick={() => onPageChange('expenses')}
+              style={{ animationDelay: `${index * 50}ms` }}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
+                  {expense.category}
+                </span>
+                <span className="text-xs text-gray-400 dark:text-gray-500">
+                  {format(expense.date, 'MMM dd')}
+                </span>
+              </div>
+              <p className="font-medium text-gray-900 dark:text-white group-hover:text-red-900 dark:group-hover:text-red-100 transition-colors truncate">
+                {expense.description}
+              </p>
+              <p className="font-bold text-red-600 dark:text-red-400 mt-2 group-hover:scale-105 transition-transform">
+                Rs. {expense.amount.toLocaleString()}
         {/* Recent Expenses */}
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-4">
@@ -489,29 +767,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onPageChange, onOpenForm }
           <div className="space-y-3 max-h-64 overflow-y-auto">
             {expenses.slice(0, 5).map((expense) => (
               <div
-                key={expense.id}
-                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200"
-              >
-                <div>
-                  <p className="font-medium text-gray-900 dark:text-white">
-                    {expense.description}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {expense.category} • {expense.date ? format(new Date(expense.date), 'MMM dd, yyyy') : 'No Date'}
-                  </p>
-                </div>
-                <span className="font-semibold text-red-600 dark:text-red-400">
-                  Rs. {expense.amount.toLocaleString()}
-                </span>
-              </div>
-            ))}
-            {expenses.length === 0 && (
-              <p className="text-gray-500 dark:text-gray-400 text-center py-4">
-                No expenses yet
-              </p>
-            )}
-          </div>
-        </div>
       </div>
     </div>
   );

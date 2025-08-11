@@ -364,6 +364,29 @@ class FirebaseSyncService {
       // Process any pending sync operations first
       await this.processSyncQueue();
       
+      // Sync all data stores to Firebase
+      const stores = ['users', 'clients', 'receipts', 'expenses', 'employees', 'attendance', 'notifications', 'documents'];
+      
+      for (const store of stores) {
+        try {
+          console.log(`🔄 Syncing ${store} to Firebase...`);
+          const localData = await this.getLocalStoreData(store);
+          
+          for (const item of localData) {
+            await this.addToSyncQueue({
+              type: 'create',
+              store,
+              data: item
+            });
+          }
+        } catch (error) {
+          console.warn(`Failed to sync ${store}:`, error);
+        }
+      }
+      
+      // Process the sync queue
+      await this.processSyncQueue();
+      
       // Update last sync time
       const syncTimeRef = ref(rtdb, `sync_metadata/${this.deviceId}/lastSync`);
       await set(syncTimeRef, new Date().toISOString());
@@ -374,6 +397,22 @@ class FirebaseSyncService {
     } catch (error) {
       console.error('❌ Full sync failed:', error);
       throw error;
+    }
+  }
+
+  private async getLocalStoreData(storeName: string): Promise<any[]> {
+    const { db } = await import('./database');
+    
+    switch (storeName) {
+      case 'users': return await db.getAllUsers();
+      case 'clients': return await db.getAllClients();
+      case 'receipts': return await db.getAllReceipts();
+      case 'expenses': return await db.getAllExpenses();
+      case 'employees': return await db.getAllEmployees();
+      case 'attendance': return await db.getAllAttendance();
+      case 'notifications': return await db.getAllNotifications();
+      case 'documents': return await db.getAllDocuments();
+      default: return [];
     }
   }
 

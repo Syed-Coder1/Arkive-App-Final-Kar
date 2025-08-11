@@ -142,6 +142,42 @@ class DatabaseService {
   }
 
   // ------------------ USERS ------------------
+  async deleteUser(id: string): Promise<void> {
+    const store = await this.getObjectStore('users', 'readwrite');
+    
+    if (this.syncEnabled) {
+      firebaseSync.addToSyncQueue({ 
+        type: 'delete', 
+        store: 'users', 
+        data: { id } 
+      }).catch(console.warn);
+    }
+    
+    return new Promise((resolve, reject) => {
+      const req = store.delete(id);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async deleteClient(id: string): Promise<void> {
+    const store = await this.getObjectStore('clients', 'readwrite');
+    
+    if (this.syncEnabled) {
+      firebaseSync.addToSyncQueue({ 
+        type: 'delete', 
+        store: 'clients', 
+        data: { id } 
+      }).catch(console.warn);
+    }
+    
+    return new Promise((resolve, reject) => {
+      const req = store.delete(id);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  }
+
   async createUser(user: Omit<User, 'id'>): Promise<User> {
     const store = await this.getObjectStore('users', 'readwrite');
     const newUser: User = { 

@@ -105,6 +105,13 @@ export function EmployeeManagement() {
     e.preventDefault();
     
     try {
+      // Check if username already exists
+      const existingUser = await db.getUserByUsername(employeeForm.username);
+      if (existingUser && !editingEmployee) {
+        alert('Username already exists. Please choose a different username.');
+        return;
+      }
+
       const employeeData = {
         ...employeeForm,
         salary: parseInt(employeeForm.salary.replace(/,/g, '')),
@@ -113,8 +120,48 @@ export function EmployeeManagement() {
 
       if (editingEmployee) {
         await updateEmployee({ ...editingEmployee, ...employeeData, updatedAt: new Date() });
+        
+        // Update user account if username or password changed
+        if (employeeForm.username !== editingEmployee.username || employeeForm.password) {
+          const userAccount = await db.getUserByUsername(editingEmployee.username);
+          if (userAccount) {
+            await db.updateUser({
+              ...userAccount,
+              username: employeeForm.username,
+              password: employeeForm.password || userAccount.password
+            });
+          }
+        }
       } else {
-        await createEmployee(employeeData);
+        // Create employee
+        const newEmployee = await createEmployee(employeeData);
+        
+        // Create user account for employee
+        try {
+          await db.createUser({
+            username: employeeForm.username,
+            password: employeeForm.password,
+            role: 'employee',
+            createdAt: new Date()
+          });
+          
+          // Log activity
+          await db.createActivity({
+            userId: user!.id,
+            action: 'create_employee_account',
+            details: `Created employee account for ${employeeForm.name} (${employeeForm.employeeId}) with username: ${employeeForm.username}`,
+            timestamp: new Date(),
+          });
+        } catch (userError) {
+          console.error('Error creating user account for employee:', userError);
+          // Don't fail the employee creation, just log the error
+          await db.createActivity({
+            userId: user!.id,
+            action: 'employee_account_error',
+            details: `Failed to create user account for employee ${employeeForm.name}: ${userError}`,
+            timestamp: new Date(),
+          });
+        }
       }
 
       resetEmployeeForm();

@@ -27,11 +27,28 @@ export function useClients() {
     firebaseSync.setupRealtimeListener('clients', (remoteData: Client[]) => {
       if (remoteData.length >= 0) { // Allow empty arrays
         setClients(prevClients => {
-          const clientMap = new Map(prevClients.map(c => [c.id, c]));
+          // Create a map to merge data properly
+          const clientMap = new Map<string, Client>();
           
-          // Merge remote data (Firebase takes precedence)
+          // Add existing clients
+          prevClients.forEach(client => {
+            if (client && client.id) {
+              clientMap.set(client.id, client);
+            }
+          });
+          
+          // Merge remote data (Firebase data takes precedence)
           remoteData.forEach(remoteClient => {
-            clientMap.set(remoteClient.id, remoteClient);
+            if (remoteClient && remoteClient.id) {
+              // Convert date strings to Date objects
+              const processedClient = {
+                ...remoteClient,
+                createdAt: remoteClient.createdAt instanceof Date ? remoteClient.createdAt : new Date(remoteClient.createdAt),
+                updatedAt: remoteClient.updatedAt instanceof Date ? remoteClient.updatedAt : new Date(remoteClient.updatedAt),
+                lastModified: remoteClient.lastModified instanceof Date ? remoteClient.lastModified : new Date(remoteClient.lastModified || remoteClient.updatedAt)
+              };
+              clientMap.set(remoteClient.id, processedClient);
+            }
           });
           
           return Array.from(clientMap.values()).sort((a, b) => 
@@ -68,7 +85,16 @@ export function useClients() {
     }
   };
 
-  return { clients, loading, createClient, updateClient, refetch: fetchClients };
+  const deleteClient = async (id: string) => {
+    try {
+      await db.deleteClient(id);
+      setClients(prev => prev.filter(c => c.id !== id));
+    } catch (error) {
+      console.error('Error deleting client:', error);
+      throw error;
+    }
+  };
+  return { clients, loading, createClient, updateClient, deleteClient, refetch: fetchClients };
 }
 
 export function useReceipts() {
@@ -93,11 +119,28 @@ export function useReceipts() {
     firebaseSync.setupRealtimeListener('receipts', (remoteData: Receipt[]) => {
       if (remoteData.length >= 0) { // Allow empty arrays
         setReceipts(prevReceipts => {
-          const receiptMap = new Map(prevReceipts.map(r => [r.id, r]));
+          // Create a map to merge data properly
+          const receiptMap = new Map<string, Receipt>();
           
-          // Merge remote data (Firebase takes precedence)
+          // Add existing receipts
+          prevReceipts.forEach(receipt => {
+            if (receipt && receipt.id) {
+              receiptMap.set(receipt.id, receipt);
+            }
+          });
+          
+          // Merge remote data (Firebase data takes precedence)
           remoteData.forEach(remoteReceipt => {
-            receiptMap.set(remoteReceipt.id, remoteReceipt);
+            if (remoteReceipt && remoteReceipt.id) {
+              // Convert date strings to Date objects
+              const processedReceipt = {
+                ...remoteReceipt,
+                date: remoteReceipt.date instanceof Date ? remoteReceipt.date : new Date(remoteReceipt.date),
+                createdAt: remoteReceipt.createdAt instanceof Date ? remoteReceipt.createdAt : new Date(remoteReceipt.createdAt),
+                lastModified: remoteReceipt.lastModified instanceof Date ? remoteReceipt.lastModified : new Date(remoteReceipt.lastModified || remoteReceipt.createdAt)
+              };
+              receiptMap.set(remoteReceipt.id, processedReceipt);
+            }
           });
           
           return Array.from(receiptMap.values()).sort((a, b) => 
